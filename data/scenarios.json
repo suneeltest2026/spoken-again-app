@@ -1,0 +1,39 @@
+{
+  "beginner": {
+    "label": "Beginner",
+    "description": "Everyday survival English. Short sentences, present/past tense, common vocabulary.",
+    "scenarios": [
+      { "id": "intro", "title": "Introducing yourself", "opener": "Play a friendly new neighbor. Greet the user and ask their name and where they're from, in very simple English." },
+      { "id": "cafe", "title": "Ordering at a cafe", "opener": "Play a cafe barista. Greet the customer and ask what they'd like to order, using simple everyday English." },
+      { "id": "directions", "title": "Asking for directions", "opener": "Play a stranger on the street. The user will ask you for directions to a train station. Respond helpfully in simple English." }
+    ]
+  },
+  "intermediate": {
+    "label": "Intermediate",
+    "description": "Natural conversational flow, connected speech, common idioms, opinions and small talk.",
+    "scenarios": [
+      { "id": "smalltalk", "title": "Small talk with a coworker", "opener": "Play a coworker chatting near the coffee machine. Make natural small talk about the weekend and ask a follow-up question." },
+      { "id": "phone", "title": "Booking a doctor's appointment by phone", "opener": "Play a clinic receptionist on the phone. Ask the caller what the problem is and offer appointment times." },
+      { "id": "opinion", "title": "Discussing a movie or show", "opener": "Play a friend who just watched a popular movie. Share a brief opinion and ask the user what they thought about a similar topic." }
+    ]
+  },
+  "advanced": {
+    "label": "Advanced",
+    "description": "Nuance, persuasion, debate, storytelling, and idiomatic, native-like phrasing.",
+    "scenarios": [
+      { "id": "debate", "title": "Friendly debate", "opener": "Play a friend who mildly disagrees with the user on whether remote work is better than office work. Open with a light, respectful challenge." },
+      { "id": "interview", "title": "Job interview - tough questions", "opener": "Play a hiring manager. Ask a challenging behavioral interview question such as describing a time the candidate handled conflict." },
+      { "id": "storytelling", "title": "Telling a story with follow-ups", "opener": "Ask the user to tell you about a memorable trip, then plan to ask engaged follow-up questions that push for more descriptive, native-like detail." }
+    ]
+  },
+  "business": {
+    "label": "Business & Accounting English",
+    "description": "Meetings, presenting numbers, client calls, negotiation, and finance vocabulary.",
+    "scenarios": [
+      { "id": "meeting", "title": "Leading a status meeting", "opener": "Play a colleague joining the user's project status meeting. Ask them to walk you through this quarter's progress." },
+      { "id": "numbers", "title": "Presenting quarterly numbers", "opener": "Play a manager. Ask the user to summarize the company's revenue and expenses for the last quarter, and probe on any variance." },
+      { "id": "client", "title": "Client call about an invoice", "opener": "Play a client who is asking about a discrepancy on an invoice. Raise the concern politely and ask the user to explain the charges." },
+      { "id": "negotiation", "title": "Negotiating a budget", "opener": "Play a department head pushing back on the user's proposed budget increase. Open by questioning one specific line item." }
+    ]
+  }
+}

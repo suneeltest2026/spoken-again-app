@@ -1,0 +1,202 @@
+:root {
+  --bg: #0f172a;
+  --panel: #1e293b;
+  --panel-light: #273449;
+  --accent: #34d399;
+  --accent-dark: #059669;
+  --text: #f1f5f9;
+  --text-dim: #94a3b8;
+  --user-bubble: #2563eb;
+  --claude-bubble: #273449;
+  --danger: #f87171;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  height: 100%;
+}
+
+#app {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 env(safe-area-inset-bottom);
+}
+
+.screen {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  padding: 20px 16px;
+}
+.screen.active { display: flex; }
+
+.app-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+  position: relative;
+}
+.app-header h1 { font-size: 1.5rem; margin: 0; }
+.subtitle { color: var(--text-dim); margin: 0; font-size: 0.9rem; }
+
+.chat-header {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.back-btn {
+  background: var(--panel-light);
+  border: none;
+  color: var(--text);
+  font-size: 1.1rem;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid #334155;
+  border-radius: 14px;
+  padding: 16px;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+.card:active { transform: scale(0.98); }
+.card:hover { border-color: var(--accent); }
+.card h3 { margin: 0 0 4px 0; font-size: 1.05rem; }
+.card p { margin: 0; color: var(--text-dim); font-size: 0.85rem; }
+
+.chat-log {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 0 12px 0;
+}
+
+.bubble {
+  max-width: 82%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+.bubble.claude {
+  background: var(--claude-bubble);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+.bubble.user {
+  background: var(--user-bubble);
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+.bubble.system {
+  align-self: center;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  background: none;
+}
+
+.feedback-card {
+  background: var(--panel-light);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  font-size: 0.88rem;
+}
+.feedback-card.hidden { display: none; }
+.feedback-label { color: var(--accent); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+.feedback-corrected { margin-bottom: 6px; font-style: italic; }
+.feedback-tip { color: var(--text-dim); }
+
+.retry-btn {
+  margin-top: 10px;
+  background: var(--accent);
+  color: #052e1f;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+}
+.retry-btn.hidden { display: none; }
+
+.input-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid #334155;
+}
+
+.mic-btn {
+  background: var(--panel-light);
+  border: none;
+  font-size: 1.3rem;
+  border-radius: 50%;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.mic-btn.recording {
+  background: var(--danger);
+  animation: pulse 1s infinite;
+}
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(248,113,113,0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(248,113,113,0); }
+  100% { box-shadow: 0 0 0 0 rgba(248,113,113,0); }
+}
+
+#text-input {
+  flex: 1;
+  background: var(--panel);
+  border: 1px solid #334155;
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+}
+
+.send-btn {
+  background: var(--accent);
+  color: #052e1f;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mic-status {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  min-height: 18px;
+  padding-top: 4px;
+}
