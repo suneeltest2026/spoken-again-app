@@ -28,14 +28,17 @@ html, body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding: calc(env(safe-area-inset-top, 0px) + 18px) 0 env(safe-area-inset-bottom);
+  padding-top: max(44px, calc(env(safe-area-inset-top, 0px) + 18px));
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 .screen {
   display: none;
   flex-direction: column;
   flex: 1;
-  padding: 20px 16px;
+  padding: 20px 20px;
 }
 .screen.active { display: flex; }
 
@@ -368,6 +371,15 @@ html, body {
   color: var(--text-dim);
   font-size: 0.8rem;
   background: none;
+}
+.bubble.thinking {
+  font-style: italic;
+  color: var(--text-dim);
+  animation: think-pulse 1.2s ease-in-out infinite;
+}
+@keyframes think-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
 }
 
 .feedback-card {

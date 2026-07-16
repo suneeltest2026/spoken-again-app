@@ -362,8 +362,23 @@
   // ---------- Talking to the server ----------
   const MAX_ATTEMPTS = 3; // after this many tries on the same step/retell, move on anyway so nobody gets stuck
 
+  function showThinkingIndicator() {
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble claude thinking';
+    bubble.id = 'thinking-bubble';
+    bubble.textContent = 'Thinking…';
+    el('chat-log').appendChild(bubble);
+    el('chat-log').scrollTop = el('chat-log').scrollHeight;
+  }
+
+  function hideThinkingIndicator() {
+    const bubble = el('thinking-bubble');
+    if (bubble) bubble.remove();
+  }
+
   async function requestJudgement(userText) {
     setBusy(true);
+    showThinkingIndicator();
     try {
       const body = {
         track: state.track,
@@ -385,6 +400,7 @@
         body: JSON.stringify(body)
       });
       const data = await res.json();
+      hideThinkingIndicator();
       if (data.error) {
         addSystemNote('⚠️ ' + data.error);
         return;
@@ -404,6 +420,7 @@
       }
       saveProgress();
     } catch (e) {
+      hideThinkingIndicator();
       addSystemNote('⚠️ Could not reach the server: ' + e.message);
     } finally {
       setBusy(false);
@@ -519,6 +536,7 @@
   let activeRecorder = null;
   let activeRecorderChunks = [];
   let pendingRecordingContext = null; // sentence/scenario context, captured before state mutates
+  let micPermissionGranted = false; // avoids re-requesting getUserMedia (slow) on every single tap
 
   function micButtonEl() {
     return micTarget === 'research' ? el('research-mic-btn') : el('mic-btn');
@@ -625,27 +643,52 @@
     });
   }
 
+  // Not every browser supports every recording format (iOS Safari in
+  // particular doesn't support the same types Chrome/Android does) — picking
+  // one explicitly that we know the device supports is more reliable than
+  // letting the browser guess, which is a likely reason recordings could
+  // silently fail to produce anything on some phones.
+  function pickRecorderMimeType() {
+    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return null;
+    const candidates = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/aac', 'audio/ogg;codecs=opus'];
+    for (const type of candidates) {
+      if (MediaRecorder.isTypeSupported(type)) return type;
+    }
+    return null;
+  }
+
   function startAudioCapture(stream) {
     try {
       activeRecorderChunks = [];
-      activeRecorder = new MediaRecorder(stream);
+      const mimeType = pickRecorderMimeType();
+      activeRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       activeRecorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) activeRecorderChunks.push(e.data);
       };
       activeRecorder.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(activeRecorderChunks, { type: activeRecorder.mimeType || 'audio/webm' });
+        const chunks = activeRecorderChunks;
+        const recordedType = activeRecorder.mimeType || mimeType || 'audio/webm';
+        const totalBytes = chunks.reduce((sum, c) => sum + c.size, 0);
         activeRecorderChunks = [];
         activeRecorder = null;
         if (pendingRecordingContext) {
-          saveRecording(pendingRecordingContext, blob);
+          if (totalBytes > 0) {
+            saveRecording(pendingRecordingContext, new Blob(chunks, { type: recordedType }));
+          } else {
+            el('mic-status').textContent = "⚠️ Didn't catch any audio to save that time — try again.";
+          }
           pendingRecordingContext = null;
         }
+      };
+      activeRecorder.onerror = () => {
+        el('mic-status').textContent = "⚠️ Recording your voice failed on this device — your answer is still graded normally.";
       };
       activeRecorder.start();
     } catch (e) {
       activeRecorder = null;
       stream.getTracks().forEach(t => t.stop());
+      el('mic-status').textContent = "⚠️ Couldn't save your voice on this device — your answer is still graded normally.";
     }
   }
 
@@ -656,12 +699,20 @@
 
     // On some mobile browsers (notably iOS Safari), SpeechRecognition needs an
     // explicit getUserMedia permission grant before it will actually start —
-    // otherwise it can fail silently. Ask for it directly first so we get a
-    // real permission prompt and a clear error if it's denied.
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      statusEl.textContent = 'Requesting microphone permission…';
+    // otherwise it can fail silently. We only need to actually ASK for that
+    // permission once per session, though — once it's granted, re-requesting
+    // a stream every single tap just adds mic-open latency for no reason.
+    // We still need a fresh stream on taps where recording is on (that's
+    // what actually captures the audio), but by then the browser already
+    // knows permission is granted, so it resolves quickly with no prompt.
+    const needsStream = navigator.mediaDevices && navigator.mediaDevices.getUserMedia
+      && (!micPermissionGranted || wantsRecording);
+
+    if (needsStream) {
+      if (!micPermissionGranted) statusEl.textContent = 'Requesting microphone permission…';
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micPermissionGranted = true;
         if (wantsRecording) {
           startAudioCapture(stream);
         } else {
@@ -704,10 +755,27 @@
   // A free, fully client-side "cartoon" effect: posterize the colors (flatten
   // them into a handful of bands) and darken detected edges into outlines —
   // no image-generation API or extra cost involved.
+  //
+  // Real phone photos have a lot of fine-grained texture (skin gradients,
+  // camera sensor noise, JPEG compression artifacts) that defeats a naive
+  // per-pixel posterize/edge-detect pass — it just looks like a slightly
+  // glitchy photo instead of a cartoon. Blurring first smooths that texture
+  // away so the posterize step produces genuinely flat color regions and the
+  // edge step only picks up real feature boundaries instead of noise.
   function cartoonify(canvas) {
     const w = canvas.width, h = canvas.height;
     const ctx = canvas.getContext('2d');
-    const src = ctx.getImageData(0, 0, w, h);
+
+    // Blur into a separate canvas first (using the browser's native blur
+    // filter, well supported on modern mobile browsers) — this is what turns
+    // "photo with speckled artifacts" into clean, flat cartoon regions.
+    const blurCanvas = document.createElement('canvas');
+    blurCanvas.width = w;
+    blurCanvas.height = h;
+    const bctx = blurCanvas.getContext('2d');
+    bctx.filter = 'blur(3px)';
+    bctx.drawImage(canvas, 0, 0);
+    const src = bctx.getImageData(0, 0, w, h);
     const data = src.data;
 
     const gray = new Float32Array(w * h);
@@ -716,7 +784,7 @@
     }
 
     const edge = new Uint8Array(w * h);
-    const EDGE_THRESHOLD = 28;
+    const EDGE_THRESHOLD = 18;
     for (let y = 1; y < h - 1; y++) {
       for (let x = 1; x < w - 1; x++) {
         const idx = y * w + x;
@@ -726,12 +794,25 @@
       }
     }
 
-    const LEVELS = 6;
+    // Thicken edges by 1px so outlines read as bold ink strokes rather than
+    // thin, easy-to-miss scattered pixels.
+    const edgeThick = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        if (edge[idx] || (x > 0 && edge[idx - 1]) || (x < w - 1 && edge[idx + 1]) ||
+            (y > 0 && edge[idx - w]) || (y < h - 1 && edge[idx + w])) {
+          edgeThick[idx] = 1;
+        }
+      }
+    }
+
+    const LEVELS = 4; // fewer bands = bolder, more visibly "flat" cartoon color regions
     const step = 255 / (LEVELS - 1);
     const out = ctx.createImageData(w, h);
     for (let p = 0, i = 0; i < data.length; i += 4, p++) {
-      if (edge[p]) {
-        out.data[i] = 30; out.data[i + 1] = 28; out.data[i + 2] = 35;
+      if (edgeThick[p]) {
+        out.data[i] = 25; out.data[i + 1] = 22; out.data[i + 2] = 30;
       } else {
         out.data[i] = Math.round(Math.round(data[i] / step) * step);
         out.data[i + 1] = Math.round(Math.round(data[i + 1] / step) * step);
@@ -1041,10 +1122,17 @@
       });
       renderRecordingsEntry();
       if (el('screen-recordings').classList.contains('active')) renderRecordingsList();
+      const statusEl = el('mic-status');
+      statusEl.textContent = '🎙️ Saved to My Recordings';
+      setTimeout(() => {
+        if (statusEl.textContent === '🎙️ Saved to My Recordings') statusEl.textContent = '';
+      }, 3000);
     } catch (e) {
-      // Recording is a nice-to-have on top of the core practice flow — if
-      // IndexedDB isn't available for some reason, fail quietly rather than
-      // interrupting the lesson.
+      // Recording is a nice-to-have on top of the core practice flow, so a
+      // failure here shouldn't interrupt the lesson — but it should still be
+      // visible, otherwise clips can silently fail to save with no way to
+      // tell besides checking My Recordings afterward and finding it empty.
+      el('mic-status').textContent = "⚠️ Couldn't save that recording — try again.";
     }
   }
 
