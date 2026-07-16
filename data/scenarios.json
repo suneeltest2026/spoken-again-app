@@ -1,39 +1,524 @@
-{
-  "beginner": {
+[
+  {
+    "key": "research",
+    "label": "Research",
+    "description": "Type any word or sentence you're curious about — get real, everyday example sentences and practice repeating them.",
+    "dynamic": true,
+    "scenarios": []
+  },
+  {
+    "key": "beginner",
     "label": "Beginner",
     "description": "Everyday survival English. Short sentences, present/past tense, common vocabulary.",
     "scenarios": [
-      { "id": "intro", "title": "Introducing yourself", "opener": "Play a friendly new neighbor. Greet the user and ask their name and where they're from, in very simple English." },
-      { "id": "cafe", "title": "Ordering at a cafe", "opener": "Play a cafe barista. Greet the customer and ask what they'd like to order, using simple everyday English." },
-      { "id": "directions", "title": "Asking for directions", "opener": "Play a stranger on the street. The user will ask you for directions to a train station. Respond helpfully in simple English." }
+      {
+        "id": "intro",
+        "title": "Introducing yourself",
+        "character": "a friendly new neighbor",
+        "story": [
+          "Hi! My name is Anna.",
+          "I am your new neighbor.",
+          "I moved here last week.",
+          "I have a small dog.",
+          "His name is Max.",
+          "I like to walk in the park every morning."
+        ]
+      },
+      {
+        "id": "cafe",
+        "title": "Ordering at a cafe",
+        "character": "a cafe barista",
+        "story": [
+          "Welcome to Sunny Cafe!",
+          "We open at seven every morning.",
+          "Today we have fresh croissants.",
+          "The coffee is very strong here.",
+          "Many people come before work.",
+          "I have worked here for two years."
+        ]
+      },
+      {
+        "id": "directions",
+        "title": "Asking for directions",
+        "character": "a stranger on the street",
+        "story": [
+          "I live near the train station.",
+          "It is not far from here.",
+          "I walk there every day.",
+          "The station has a big clock outside.",
+          "Sometimes the train is late.",
+          "I always leave home early."
+        ]
+      },
+      {
+        "id": "groceries",
+        "title": "Buying groceries",
+        "character": "a supermarket cashier",
+        "story": [
+          "Hello! Did you find everything today?",
+          "That will be twelve dollars.",
+          "Do you have a store card?",
+          "You can save money with a card.",
+          "Would you like a bag?",
+          "Thank you, have a nice day!"
+        ]
+      },
+      {
+        "id": "clinic",
+        "title": "Checking in at a clinic",
+        "character": "a front-desk nurse",
+        "story": [
+          "Hello! Do you have an appointment today?",
+          "Please write your name here.",
+          "The doctor will see you soon.",
+          "Please take a seat and wait.",
+          "It will not be long.",
+          "Thank you for your patience."
+        ]
+      },
+      {
+        "id": "foodorder",
+        "title": "Ordering food by phone",
+        "character": "restaurant staff taking a phone order",
+        "story": [
+          "Thank you for calling Golden Dragon.",
+          "What would you like to order?",
+          "We have chicken, rice, and noodles.",
+          "Delivery takes about thirty minutes.",
+          "Can I have your address, please?",
+          "Your total is twenty dollars."
+        ]
+      },
+      {
+        "id": "classmate",
+        "title": "Meeting a new classmate",
+        "character": "a classmate in your English class",
+        "story": [
+          "Hi! Is this seat free?",
+          "I am new in this class.",
+          "My name is Leo.",
+          "I am from Brazil.",
+          "What is your name?",
+          "Nice to meet you!"
+        ]
+      },
+      {
+        "id": "postoffice",
+        "title": "At the post office",
+        "character": "a postal worker",
+        "story": [
+          "Hello! How can I help you today?",
+          "Do you want to send this package?",
+          "Where is it going?",
+          "It will take five days.",
+          "That will be eight dollars.",
+          "Here is your receipt."
+        ]
+      },
+      {
+        "id": "taxi",
+        "title": "Small talk with a taxi driver",
+        "character": "a taxi driver",
+        "story": [
+          "Good morning! Where are you going today?",
+          "The traffic is bad this morning.",
+          "I have driven a taxi for ten years.",
+          "Do you live near here?",
+          "We will arrive in ten minutes.",
+          "Have a good day!"
+        ]
+      }
     ]
   },
-  "intermediate": {
+  {
+    "key": "intermediate",
     "label": "Intermediate",
     "description": "Natural conversational flow, connected speech, common idioms, opinions and small talk.",
     "scenarios": [
-      { "id": "smalltalk", "title": "Small talk with a coworker", "opener": "Play a coworker chatting near the coffee machine. Make natural small talk about the weekend and ask a follow-up question." },
-      { "id": "phone", "title": "Booking a doctor's appointment by phone", "opener": "Play a clinic receptionist on the phone. Ask the caller what the problem is and offer appointment times." },
-      { "id": "opinion", "title": "Discussing a movie or show", "opener": "Play a friend who just watched a popular movie. Share a brief opinion and ask the user what they thought about a similar topic." }
+      {
+        "id": "smalltalk",
+        "title": "Small talk with a coworker",
+        "character": "a coworker chatting near the coffee machine",
+        "story": [
+          "So, I finally got around to cleaning out my garage this weekend.",
+          "It took way longer than I expected.",
+          "I found a bunch of old photos from college.",
+          "It was such a blast from the past.",
+          "My partner kept teasing me for getting distracted every five minutes.",
+          "In the end, we filled up three whole boxes to donate.",
+          "Honestly, it felt great to clear out the clutter."
+        ]
+      },
+      {
+        "id": "phone",
+        "title": "Booking a doctor's appointment by phone",
+        "character": "a clinic receptionist",
+        "story": [
+          "We've been absolutely swamped here all week.",
+          "Dr. Patel is fully booked until Thursday.",
+          "A few patients have had to reschedule because of the flu going around.",
+          "Normally we can fit people in the same day.",
+          "This week has just been the exception.",
+          "I'd recommend booking early next time to be safe.",
+          "Hopefully things calm down after the weekend."
+        ]
+      },
+      {
+        "id": "opinion",
+        "title": "Discussing a movie or show",
+        "character": "a friend who just watched a popular show",
+        "story": [
+          "I finally watched that new thriller everyone's been talking about.",
+          "Honestly, the first half really dragged for me.",
+          "But the twist at the end completely caught me off guard.",
+          "I ended up binge-watching the whole series in one weekend.",
+          "My roommate thought I'd lost my mind staying up so late.",
+          "Looking back, it was totally worth the lack of sleep."
+        ]
+      },
+      {
+        "id": "weekendtrip",
+        "title": "Planning a weekend trip with a friend",
+        "character": "a friend planning a getaway",
+        "story": [
+          "Hey, I was thinking we should get away for the weekend.",
+          "I've had my eye on that little mountain town for a while now.",
+          "The drive is only a couple of hours, so it's not a big commitment.",
+          "We could just wing it and figure out plans once we're there.",
+          "Apparently the hiking trails are gorgeous this time of year.",
+          "Let's split the cost of a cabin so it doesn't break the bank.",
+          "I'm honestly counting down the days already."
+        ]
+      },
+      {
+        "id": "returnitem",
+        "title": "Returning a faulty item at a store",
+        "character": "a store clerk",
+        "story": [
+          "I see you're looking to return this — what seems to be the issue?",
+          "Ah, that model has had a few hiccups like that reported.",
+          "No worries, we can sort this out pretty easily.",
+          "Do you have the receipt, or was this a card purchase?",
+          "I can offer you a full refund or a straight swap for a new one.",
+          "Sorry for the hassle — I know that's frustrating.",
+          "It should just take a couple of minutes to process."
+        ]
+      },
+      {
+        "id": "gymroutine",
+        "title": "Talking about a new gym routine",
+        "character": "a gym buddy",
+        "story": [
+          "So, I finally committed to going to the gym four times a week.",
+          "The first few sessions nearly wiped me out completely.",
+          "But I'm slowly getting the hang of the routine now.",
+          "My trainer keeps pushing me to up the weights each week.",
+          "Honestly, I was skeptical at first, but I'm seeing real progress.",
+          "The hardest part is just dragging myself there after work.",
+          "Once I'm in the zone though, I don't want to stop."
+        ]
+      },
+      {
+        "id": "airportdelay",
+        "title": "Discussing a travel delay",
+        "character": "a fellow traveler at the airport",
+        "story": [
+          "Looks like we're stuck here for a while — the storm really threw things off.",
+          "I've been sitting at this gate for almost three hours now.",
+          "Apparently a bunch of connecting flights got backed up because of this.",
+          "I was supposed to make it home in time for a family dinner tonight.",
+          "At this point, I'm just trying to make the best of it.",
+          "At least the airport has decent food around here.",
+          "Fingers crossed they announce a new departure time soon."
+        ]
+      },
+      {
+        "id": "catchup",
+        "title": "Catching up after a long time",
+        "character": "an old friend",
+        "story": [
+          "Wow, it's been way too long since we last caught up!",
+          "I feel like so much has changed since we last spoke.",
+          "I actually ended up switching careers a couple of years back.",
+          "It was a huge leap of faith, but it paid off in the end.",
+          "How about you — what have you been up to all this time?",
+          "We really should make more of an effort to keep in touch.",
+          "Let's grab coffee properly sometime soon."
+        ]
+      },
+      {
+        "id": "cooking",
+        "title": "Talking about a recipe",
+        "character": "a neighbor",
+        "story": [
+          "I tried out a new recipe last night and it turned out surprisingly well.",
+          "It's this one-pot pasta dish I found online.",
+          "I always thought one-pot meals would taste bland, but I was totally wrong.",
+          "The trick is letting everything simmer together for a good while.",
+          "I ended up making way too much, so I've been eating leftovers all week.",
+          "You should definitely give it a shot sometime.",
+          "I can send you the recipe if you're interested."
+        ]
+      }
     ]
   },
-  "advanced": {
+  {
+    "key": "advanced",
     "label": "Advanced",
     "description": "Nuance, persuasion, debate, storytelling, and idiomatic, native-like phrasing.",
     "scenarios": [
-      { "id": "debate", "title": "Friendly debate", "opener": "Play a friend who mildly disagrees with the user on whether remote work is better than office work. Open with a light, respectful challenge." },
-      { "id": "interview", "title": "Job interview - tough questions", "opener": "Play a hiring manager. Ask a challenging behavioral interview question such as describing a time the candidate handled conflict." },
-      { "id": "storytelling", "title": "Telling a story with follow-ups", "opener": "Ask the user to tell you about a memorable trip, then plan to ask engaged follow-up questions that push for more descriptive, native-like detail." }
+      {
+        "id": "debate",
+        "title": "Friendly debate",
+        "character": "a friend who mildly disagrees about remote work",
+        "story": [
+          "Look, I get why people romanticize working from home, but hear me out.",
+          "Ever since we went remote, I feel like half my day gets swallowed up by messages that could've been a two-minute chat.",
+          "There's something about being in the same room that just cuts through the noise.",
+          "Sure, the commute was a drag, but at least it gave me a clear line between work and home.",
+          "Now I catch myself answering emails at ten at night, and that's not healthy.",
+          "I'm not saying offices are perfect, but this whole remote-work honeymoon phase might be wearing off for a lot of people.",
+          "At the end of the day, I think a hybrid setup splits the difference best."
+        ]
+      },
+      {
+        "id": "interview",
+        "title": "Job interview - tough questions",
+        "character": "a hiring manager",
+        "story": [
+          "Let me tell you about a hire that really put our team through the wringer last year.",
+          "We brought someone on who looked fantastic on paper, but the culture fit just wasn't there.",
+          "Within a month, tensions were boiling over between departments.",
+          "I had to step in and mediate more times than I'd like to admit.",
+          "Eventually we made the tough call to part ways, which was a bitter pill to swallow for everyone involved.",
+          "It taught me that skills alone don't cut it if someone can't read the room.",
+          "Since then, we've leaned much harder on behavioral interviews like this one."
+        ]
+      },
+      {
+        "id": "storytelling",
+        "title": "Telling a story with follow-ups",
+        "character": "a friend recounting a solo trip",
+        "story": [
+          "A few years ago I decided to backpack through Vietnam completely solo.",
+          "I'll admit, the first few days were nerve-wracking since I barely spoke a word of the language.",
+          "But the locals went out of their way to help me whenever I looked lost.",
+          "I ended up joining a group of travelers I met at a hostel in Hanoi.",
+          "We rented scooters and rode along the coast for nearly a week straight.",
+          "At one point we got caught in a massive storm and had to wait it out in a tiny roadside shack.",
+          "Looking back, that random storm turned into one of my favorite memories of the whole trip."
+        ]
+      },
+      {
+        "id": "socialmedia",
+        "title": "Debating social media's impact",
+        "character": "a friend with strong opinions",
+        "story": [
+          "I really think social media has done more harm than good at this point.",
+          "Everyone's constantly comparing their behind-the-scenes to everyone else's highlight reel.",
+          "It's warping how people, especially teenagers, see themselves.",
+          "Sure, it's connected people across distances in ways we never had before.",
+          "But I can't ignore how much anxiety it seems to be fueling.",
+          "The algorithms are designed to be addictive on purpose, and that worries me.",
+          "At some point, we have to ask who's actually benefiting from all this engagement.",
+          "What's your take — are we overblowing the downsides?"
+        ]
+      },
+      {
+        "id": "salaryraise",
+        "title": "Negotiating a salary raise",
+        "character": "your manager",
+        "story": [
+          "I appreciate you bringing this up directly with me.",
+          "You've clearly put in the work this past year, and that hasn't gone unnoticed.",
+          "That said, budget approvals this cycle have been tighter than usual.",
+          "I want to make sure whatever we land on is something I can actually defend upstairs.",
+          "Let's talk through your accomplishments so I have concrete points to work with.",
+          "I can't promise the exact number you're after, but I'm willing to advocate for you.",
+          "Give me a few days to see what flexibility we actually have."
+        ]
+      },
+      {
+        "id": "bookclub",
+        "title": "Discussing a controversial book",
+        "character": "a book club member",
+        "story": [
+          "I have to say, this book completely divided our group.",
+          "Some people found the ending brilliant, almost inevitable in hindsight.",
+          "Others felt like it completely betrayed everything set up earlier.",
+          "I personally think the author was deliberately leaving things unresolved.",
+          "It's the kind of book that lingers with you long after you finish it.",
+          "Still, I can see why some readers felt cheated out of closure.",
+          "What stuck with you most after finishing it?"
+        ]
+      },
+      {
+        "id": "constructivecriticism",
+        "title": "Giving constructive criticism to a friend",
+        "character": "a close friend",
+        "story": [
+          "Hey, I wanted to bring something up, and I hope you take it in the spirit it's meant.",
+          "I've noticed you've been canceling plans pretty last-minute lately.",
+          "I get that things come up, but it's started to feel like a pattern.",
+          "I'm not trying to guilt-trip you, I just miss actually seeing you.",
+          "I'd rather say something now than let it quietly build resentment.",
+          "I know you've got a lot on your plate right now, and I want to be understanding.",
+          "I just wanted to be upfront instead of letting it fester."
+        ]
+      },
+      {
+        "id": "persuadeinvest",
+        "title": "Persuading a skeptical friend to invest",
+        "character": "a friend pitching an idea",
+        "story": [
+          "I know you're generally pretty risk-averse, so hear me out on this one.",
+          "This isn't some get-rich-quick scheme I stumbled onto overnight.",
+          "I've been researching this for months before even considering putting money in.",
+          "The returns won't be overnight, but the fundamentals seem genuinely solid.",
+          "I get why you'd be skeptical, given how many of these pitches turn out to be scams.",
+          "I'm not asking you to go all in, just to keep an open mind.",
+          "Worst case, you do a bit more digging and decide it's not for you."
+        ]
+      },
+      {
+        "id": "careerchange",
+        "title": "Reflecting on a career change",
+        "character": "a former colleague",
+        "story": [
+          "Leaving that job was probably the scariest decision I've ever made.",
+          "Everyone around me thought I was throwing away a stable career.",
+          "For months, I genuinely second-guessed whether I'd made a huge mistake.",
+          "But looking back now, I don't think I could've stayed much longer without burning out completely.",
+          "The transition period was rough, financially and mentally.",
+          "These days, I actually look forward to Mondays, which felt impossible before.",
+          "I guess the lesson is that comfort and fulfillment aren't always the same thing."
+        ]
+      }
     ]
   },
-  "business": {
+  {
+    "key": "business",
     "label": "Business & Accounting English",
     "description": "Meetings, presenting numbers, client calls, negotiation, and finance vocabulary.",
     "scenarios": [
-      { "id": "meeting", "title": "Leading a status meeting", "opener": "Play a colleague joining the user's project status meeting. Ask them to walk you through this quarter's progress." },
-      { "id": "numbers", "title": "Presenting quarterly numbers", "opener": "Play a manager. Ask the user to summarize the company's revenue and expenses for the last quarter, and probe on any variance." },
-      { "id": "client", "title": "Client call about an invoice", "opener": "Play a client who is asking about a discrepancy on an invoice. Raise the concern politely and ask the user to explain the charges." },
-      { "id": "negotiation", "title": "Negotiating a budget", "opener": "Play a department head pushing back on the user's proposed budget increase. Open by questioning one specific line item." }
+      {
+        "id": "meeting",
+        "title": "Leading a status meeting",
+        "character": "a colleague joining your project status meeting",
+        "story": [
+          "So, quick rundown on where we stand this quarter.",
+          "We hit our revenue target, but just barely, coming in at around ninety-eight percent of forecast.",
+          "The delay on the vendor contract pushed a few deliverables into next month.",
+          "On the plus side, the new client onboarding process cut our ramp-up time nearly in half.",
+          "We did go over budget slightly on contractor costs, mostly due to the platform migration.",
+          "Overall, I'd call it a solid quarter with a couple of lessons learned."
+        ]
+      },
+      {
+        "id": "numbers",
+        "title": "Presenting quarterly numbers",
+        "character": "your manager",
+        "story": [
+          "Let's walk through the numbers from last quarter.",
+          "Revenue came in at 2.4 million, up eight percent from the previous quarter.",
+          "Operating expenses rose slightly due to increased marketing spend.",
+          "Our gross margin held steady at around forty-two percent.",
+          "The biggest variance was in travel costs, which came in well under budget.",
+          "Overall, net income landed close to our forecast, with only a small shortfall."
+        ]
+      },
+      {
+        "id": "client",
+        "title": "Client call about an invoice",
+        "character": "a client asking about a discrepancy",
+        "story": [
+          "I was going through last month's invoice and noticed a charge I didn't recognize.",
+          "It's listed as a service fee, but I don't remember discussing that upfront.",
+          "My accounting team flagged it during our reconciliation process.",
+          "I want to make sure we're not being billed for something outside our agreement.",
+          "This isn't the first time we've had a small discrepancy like this.",
+          "I'd like to get it sorted before it affects our next payment cycle."
+        ]
+      },
+      {
+        "id": "negotiation",
+        "title": "Negotiating a budget",
+        "character": "a department head questioning your proposal",
+        "story": [
+          "I've looked over your budget proposal, and a few line items are giving me pause.",
+          "The increase in software licensing costs seems steep compared to last year.",
+          "I understand the team has grown, but the numbers don't quite add up for me yet.",
+          "We're under pressure company-wide to tighten spending this cycle.",
+          "I'd need a clearer breakdown before I can justify this increase to finance.",
+          "That said, I'm open to finding a middle ground if the case is strong enough."
+        ]
+      },
+      {
+        "id": "taxdeadline",
+        "title": "Explaining a tax deadline to a client",
+        "character": "a client",
+        "story": [
+          "I wanted to check in about the upcoming filing deadline.",
+          "I'm a little worried we don't have all the documentation ready yet.",
+          "Is there any flexibility if we need a short extension?",
+          "I don't want to risk any penalties on our end.",
+          "What exactly would you need from us to move forward this week?",
+          "I'd rather sort this out now than scramble at the last minute."
+        ]
+      },
+      {
+        "id": "cashflow",
+        "title": "Discussing cash flow problems",
+        "character": "a finance colleague",
+        "story": [
+          "I need to flag something concerning about our cash position this month.",
+          "A few large clients have pushed their payments out past the usual terms.",
+          "That's put us in a tighter spot than the forecast anticipated.",
+          "We might need to delay some of the discretionary spending for now.",
+          "I've already reached out to a couple of the slower-paying accounts.",
+          "If this continues next month, we'll need to revisit our credit line.",
+          "I wanted to loop you in before it becomes a bigger issue."
+        ]
+      },
+      {
+        "id": "auditfinding",
+        "title": "Presenting an audit finding",
+        "character": "an auditor",
+        "story": [
+          "During our review, we identified a discrepancy in the expense reporting process.",
+          "Several transactions were missing proper supporting documentation.",
+          "This isn't necessarily an indication of wrongdoing, but it is a control gap.",
+          "We'd recommend tightening the approval workflow going forward.",
+          "I'll include the specific line items in our formal report.",
+          "Do you have any context that might explain these particular entries?"
+        ]
+      },
+      {
+        "id": "onboardingexpense",
+        "title": "Onboarding a new hire on expense policy",
+        "character": "a new employee",
+        "story": [
+          "Thanks for walking me through this — I want to make sure I get it right.",
+          "So just to confirm, receipts are required for anything over twenty-five dollars?",
+          "What's the turnaround time for reimbursement once I submit a report?",
+          "Are client meals treated differently from regular team lunches?",
+          "I appreciate you being patient with all these questions.",
+          "I'd rather ask now than submit something incorrectly later."
+        ]
+      },
+      {
+        "id": "vendordispute",
+        "title": "Handling a vendor payment dispute",
+        "character": "a vendor representative",
+        "story": [
+          "I'm following up regarding the invoice that's now significantly overdue.",
+          "I understand delays happen, but this has gone past our agreed terms twice now.",
+          "We value the relationship, which is why I wanted to raise it directly rather than escalate.",
+          "Is there something on your end causing the holdup with processing?",
+          "We'd appreciate a clear timeline so we can plan accordingly.",
+          "I'm happy to work with you on a revised schedule if needed."
+        ]
+      }
     ]
   }
-}
+]
