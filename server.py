@@ -34,7 +34,17 @@ ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 app = Flask(__name__, static_folder=str(PUBLIC_DIR), static_url_path="")
 
 with open(BASE_DIR / "data" / "scenarios.json", "r") as f:
-    SCENARIOS = json.load(f)
+    SCENARIOS = json.load(f)  # ordered list of tracks, each with an ordered list of scenarios
+
+
+def find_track(track_key):
+    return next((t for t in SCENARIOS if t["key"] == track_key), None)
+
+
+def find_scenario(track_data, scenario_id):
+    if not track_data:
+        return None
+    return next((s for s in track_data["scenarios"] if s["id"] == scenario_id), None)
 
 
 @app.route("/")
@@ -59,35 +69,101 @@ def level_instructions(track):
         ),
         "advanced": (
             "Speak like a native speaker at natural speed. Use nuance, idioms, "
-            "varied sentence structure, and push the user with follow-up "
-            "questions that require detailed, sophisticated answers."
+            "and varied sentence structure."
         ),
         "business": (
             "Speak in professional business English appropriate for meetings, "
             "finance, and client communication. Use accurate business/accounting "
-            "vocabulary (revenue, variance, invoice, budget, forecast, etc.) at a "
-            "natural professional pace."
+            "vocabulary at a natural professional pace."
+        ),
+        "research": (
+            "Speak clearly at a natural, everyday pace — this isn't tied to a "
+            "specific difficulty level, just clear modern spoken English."
         ),
     }.get(track, "Speak naturally and clearly.")
 
 
-def build_system_prompt(track, scenario):
-    return f"""You are a spoken-English conversation partner inside a fluency-practice app. Your two jobs each turn are:
-1) Stay fully in character for the roleplay scenario described below, and give a natural, engaging spoken-style reply that keeps the conversation going.
-2) Coach the learner on the English they just spoke (their message came from speech-to-text, so ignore obvious mic/transcription glitches like missing punctuation).
+def leniency_note(track):
+    return {
+        "beginner": "Be quite lenient — small mistakes are fine as long as the core meaning came through.",
+        "intermediate": "Expect reasonably close wording but allow natural variation and paraphrasing.",
+        "advanced": "Expect close, accurate wording and natural phrasing, since precision matters at this level.",
+        "business": "Expect close, professional wording, since precision matters in a business context.",
+        "research": "Be reasonably lenient — the goal is learning to use the word/sentence naturally, not perfect recitation.",
+    }.get(track, "Use your best judgment on how close this needs to be.")
 
-SCENARIO: {scenario['opener']}
+
+def build_repeat_system_prompt(track, character, target_sentence, attempt_number):
+    return f"""You are coaching a spoken-English learner through a "listen and repeat" exercise. Stay in character as {character} the whole time, including in your feedback — react the way that character naturally would, just warmer and more encouraging since this is a practice space.
+
 LEVEL: {track} — {level_instructions(track)}
+TARGET SENTENCE THE LEARNER IS TRYING TO REPEAT: "{target_sentence}"
+This is attempt #{attempt_number} at this exact sentence.
 
-Respond with ONLY a single JSON object, no markdown fences, no extra text, matching exactly this shape:
+The learner just said something out loud (transcribed via speech-to-text, so ignore obvious mic/transcription glitches like missing punctuation or casing). {leniency_note(track)}
+
+Respond with ONLY a single JSON object, no markdown fences, no extra text:
 {{
-  "reply": "<your in-character spoken reply, 1-3 sentences, natural spoken style>",
-  "corrected": "<a corrected, more natural version of the learner's last message, or null if it was already good>",
-  "tip": "<one short, specific, encouraging coaching tip about grammar, word choice, or phrasing, or null if nothing meaningful to correct>",
-  "needsRetry": true or false — true if the learner should say the corrected sentence out loud again before moving on, false otherwise. Only set true for meaningful errors, not tiny slips.
-}}
+  "ok": true or false — true if their attempt is close enough to count as a successful repeat (focus on whether the meaning and key words came through, not perfection),
+  "feedback": "<a short, warm, in-character reaction, 1-2 sentences. ALWAYS include something — if it was good, say so specifically and maybe add one small tip; if not, gently point out what to fix. Never leave this generic or empty.>",
+  "modelAnswer": "<null if ok is true; otherwise repeat the exact TARGET SENTENCE above so they can see exactly what to aim for>"
+}}"""
 
-Keep "reply" appropriate to the LEVEL above. Keep tone warm and encouraging — this is a practice space, mistakes are expected and normal."""
+
+def build_retell_system_prompt(track, character, full_story, attempt_number):
+    return f"""You are coaching a spoken-English learner who just finished learning a short story, sentence by sentence, and is now retelling the WHOLE story from memory in their own words. Stay in character as {character} the whole time, including in your feedback.
+
+LEVEL: {track} — {level_instructions(track)}
+THE FULL STORY (what they are trying to retell): "{full_story}"
+This is attempt #{attempt_number} at retelling it.
+
+The learner just retold the story out loud (transcribed via speech-to-text, so ignore obvious mic/transcription glitches). Judge their retelling generously — they don't need exact wording, just the key events/details in roughly the right order.
+
+Respond with ONLY a single JSON object, no markdown fences, no extra text:
+{{
+  "ok": true or false — true if they captured the story reasonably well overall,
+  "feedback": "<a short, warm, in-character reaction. ALWAYS mention at least one specific thing they got right, and if relevant, one specific detail they missed or could add. Never leave this generic or empty.>",
+  "modelAnswer": "<null if ok is true; otherwise the FULL STORY text above, so they can compare what they said to the original>"
+}}"""
+
+
+def build_research_system_prompt(term):
+    return f"""The learner wants to understand and practice this English word or sentence: "{term}"
+
+Produce 2 to 3 short example sentences showing how it is naturally used in real, everyday, modern day-to-day life. Prioritize the most common, current, useful meaning(s) of "{term}" — if it has more than one common everyday use, cover a couple of different realistic contexts (e.g. casual conversation, workplace, family life, shopping) rather than obscure, archaic, or overly technical meanings. Sentences should sound like natural spoken English, not stiff textbook examples.
+
+Respond with ONLY a single JSON object, no markdown fences, no extra text:
+{{
+  "meaning": "<one simple, clear sentence explaining what this word/phrase commonly means or how it's used today>",
+  "sentences": ["<natural example sentence 1>", "<natural example sentence 2>", "<natural example sentence 3, only if it adds a genuinely different context>"]
+}}"""
+
+
+def call_claude(system, user_text):
+    resp = requests.post(
+        ANTHROPIC_URL,
+        headers={
+            "x-api-key": API_KEY,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+        json={
+            "model": MODEL,
+            "max_tokens": 400,
+            "system": system,
+            "messages": [{"role": "user", "content": user_text or "(no speech captured)"}],
+        },
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    raw = "".join(block.get("text", "") for block in data.get("content", []))
+    try:
+        start = raw.index("{")
+        end = raw.rindex("}")
+        return json.loads(raw[start:end + 1])
+    except (ValueError, json.JSONDecodeError):
+        return {"ok": False, "feedback": raw.strip() or "Let's try that again.", "modelAnswer": None}
 
 
 @app.route("/api/chat", methods=["POST"])
@@ -100,51 +176,66 @@ def chat():
     body = request.get_json(force=True) or {}
     track = body.get("track")
     scenario_id = body.get("scenarioId")
-    history = body.get("history") or []
+    mode = body.get("mode")
+    user_text = (body.get("userText") or "").strip()
+    attempt_number = body.get("attemptNumber") or 1
+    step_index = body.get("stepIndex")
 
-    track_data = SCENARIOS.get(track)
-    scenario = None
-    if track_data:
-        scenario = next((s for s in track_data["scenarios"] if s["id"] == scenario_id), None)
-    if not track_data or not scenario:
-        return jsonify({"error": "Unknown track or scenario."}), 400
+    track_data = find_track(track)
+    scenario = find_scenario(track_data, scenario_id)
 
-    system = build_system_prompt(track, scenario)
-    messages = [{"role": m["role"], "content": m["content"]} for m in history]
-    if not messages:
-        messages.append({
-            "role": "user",
-            "content": "(The learner has just joined. Greet them and start the scene.)"
-        })
+    if scenario:
+        # A fixed, server-known scenario — use its authoritative content.
+        story = scenario["story"]
+        character = scenario["character"]
+    else:
+        # Dynamic content (e.g. the Research track) — the client sends the
+        # story/character directly since it isn't pre-written server-side.
+        story = body.get("story")
+        character = body.get("character") or "a friendly vocabulary coach"
+        if not track or not isinstance(story, list) or not story:
+            return jsonify({"error": "Unknown track or scenario."}), 400
+
+    if mode == "repeat":
+        if step_index is None or not isinstance(step_index, int) or step_index < 0 or step_index >= len(story):
+            return jsonify({"error": "Invalid story step."}), 400
+        system = build_repeat_system_prompt(track, character, story[step_index], attempt_number)
+    elif mode == "retell":
+        system = build_retell_system_prompt(track, character, " ".join(story), attempt_number)
+    else:
+        return jsonify({"error": "Unknown mode — expected 'repeat' or 'retell'."}), 400
 
     try:
-        resp = requests.post(
-            ANTHROPIC_URL,
-            headers={
-                "x-api-key": API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": MODEL,
-                "max_tokens": 400,
-                "system": system,
-                "messages": messages,
-            },
-            timeout=30,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        raw = "".join(block.get("text", "") for block in data.get("content", []))
-
-        try:
-            start = raw.index("{")
-            end = raw.rindex("}")
-            parsed = json.loads(raw[start:end + 1])
-        except (ValueError, json.JSONDecodeError):
-            parsed = {"reply": raw.strip(), "corrected": None, "tip": None, "needsRetry": False}
-
+        parsed = call_claude(system, user_text)
         return jsonify(parsed)
+    except requests.exceptions.HTTPError as e:
+        detail = e.response.text if e.response is not None else str(e)
+        return jsonify({"error": f"Claude request failed: {detail}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Claude request failed: {e}"}), 500
+
+
+@app.route("/api/research", methods=["POST"])
+def research_term():
+    if not API_KEY:
+        return jsonify({
+            "error": "No ANTHROPIC_API_KEY configured on the server. Add one to your .env file and restart the server."
+        }), 500
+
+    body = request.get_json(force=True) or {}
+    term = (body.get("term") or "").strip()
+    if not term:
+        return jsonify({"error": "Please enter a word or sentence to look up."}), 400
+    if len(term) > 200:
+        return jsonify({"error": "That's a bit long — try a single word or one sentence."}), 400
+
+    system = build_research_system_prompt(term)
+    try:
+        parsed = call_claude(system, term)
+        sentences = parsed.get("sentences")
+        if not isinstance(sentences, list) or not sentences:
+            return jsonify({"error": "Couldn't come up with examples for that — try a different word or sentence."}), 500
+        return jsonify({"meaning": parsed.get("meaning") or "", "sentences": sentences})
     except requests.exceptions.HTTPError as e:
         detail = e.response.text if e.response is not None else str(e)
         return jsonify({"error": f"Claude request failed: {detail}"}), 500

@@ -1,4 +1,4 @@
-# Speak Again — Fluency Practice App
+# Speaka Repeatu — Fluency Practice App
 
 A mobile-first web app for practicing spoken English through repeated conversation
 practice with Claude. Pick a level (Beginner / Intermediate / Advanced) or the
