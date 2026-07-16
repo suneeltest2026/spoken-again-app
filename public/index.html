@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Speak Again — Fluency Practice</title>
+<title>Speaka Repeatu — Fluency Practice</title>
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -13,10 +13,100 @@
   <!-- SCREEN 1: choose track -->
   <section id="screen-tracks" class="screen active">
     <header class="app-header">
-      <h1>Speak Again</h1>
+      <h1>Speaka Repeatu</h1>
       <p class="subtitle">Practice speaking English out loud with Claude</p>
     </header>
     <div id="track-list" class="card-list"></div>
+
+    <div id="avatar-card" class="avatar-card">
+      <div id="avatar-empty" class="avatar-empty">
+        <div class="avatar-placeholder">🙂</div>
+        <p>Create your learning buddy — turn a selfie into your own cartoon avatar.</p>
+        <label class="avatar-upload-btn" for="avatar-file-input">📷 Take or choose a photo</label>
+      </div>
+      <div id="avatar-filled" class="avatar-filled hidden">
+        <img id="avatar-image" class="avatar-image" alt="Your cartoon avatar" />
+        <p class="avatar-caption">Your Learning Buddy</p>
+        <label class="avatar-upload-btn secondary" for="avatar-file-input">Retake photo</label>
+      </div>
+      <input id="avatar-file-input" type="file" accept="image/*" capture="user" class="hidden-file-input" />
+    </div>
+
+    <div id="flashcard-entry" class="flashcard-entry-card">
+      <div class="flashcard-entry-icon">📚</div>
+      <div class="flashcard-entry-text">
+        <h3>Flashcard Review</h3>
+        <p id="flashcard-entry-sub">Complete a story or look up a word to start building your deck.</p>
+      </div>
+      <button id="flashcard-entry-btn" class="roleplay-btn" type="button" disabled>Review</button>
+    </div>
+
+    <div id="recordings-entry" class="flashcard-entry-card">
+      <div class="flashcard-entry-icon recordings-entry-icon">🎙️</div>
+      <div class="flashcard-entry-text">
+        <h3>My Recordings</h3>
+        <p id="recordings-entry-sub">Turn on "Save my voice" (⏺) next to the mic while practicing to start collecting clips.</p>
+      </div>
+      <button id="recordings-entry-btn" class="roleplay-btn" type="button" disabled>Listen</button>
+    </div>
+  </section>
+
+  <!-- SCREEN: recordings -->
+  <section id="screen-recordings" class="screen">
+    <header class="app-header chat-header">
+      <button class="back-btn" data-back="screen-tracks">&larr;</button>
+      <div class="chat-header-text">
+        <h1>My Recordings</h1>
+        <p class="subtitle" id="recordings-count-label"></p>
+      </div>
+    </header>
+
+    <div id="recordings-empty" class="hidden">
+      <p class="subtitle">Nothing recorded yet — turn on "Save my voice" (the ⏺ button next to the mic) while practicing a story.</p>
+    </div>
+
+    <div id="recordings-list" class="card-list"></div>
+  </section>
+
+  <!-- SCREEN: flashcards -->
+  <section id="screen-flashcards" class="screen">
+    <header class="app-header chat-header">
+      <button class="back-btn" data-back="screen-tracks">&larr;</button>
+      <div class="chat-header-text">
+        <h1>Flashcards</h1>
+        <p class="subtitle" id="flashcard-progress"></p>
+      </div>
+    </header>
+
+    <div id="flashcard-empty" class="hidden">
+      <p class="subtitle">Nothing to review yet — finish a story or look up a word to build your deck.</p>
+    </div>
+
+    <div id="flashcard-done" class="done-card hidden">
+      <div class="done-title">🎉 All caught up!</div>
+      <p id="flashcard-done-sub">You've reviewed everything due today.</p>
+      <button id="flashcard-done-btn" class="retry-btn">Back to home</button>
+    </div>
+
+    <div id="flashcard-stage" class="flashcard-stage hidden">
+      <div id="flashcard-card" class="flashcard-card">
+        <div class="flashcard-face flashcard-front">
+          <div id="flashcard-front-tag" class="flashcard-tag"></div>
+          <div id="flashcard-front-text" class="flashcard-main-text"></div>
+          <p class="flashcard-hint">Tap to reveal</p>
+        </div>
+        <div class="flashcard-face flashcard-back">
+          <div id="flashcard-back-tag" class="flashcard-tag"></div>
+          <div id="flashcard-back-text" class="flashcard-main-text"></div>
+        </div>
+      </div>
+
+      <div id="flashcard-grade-row" class="flashcard-controls hidden">
+        <button id="flashcard-again-btn" class="secondary-btn flashcard-grade-btn" type="button">Again</button>
+        <button id="flashcard-good-btn" class="roleplay-btn flashcard-grade-btn" type="button">Good</button>
+        <button id="flashcard-easy-btn" class="secondary-btn flashcard-grade-btn" type="button">Easy</button>
+      </div>
+    </div>
   </section>
 
   <!-- SCREEN 2: choose scenario -->
@@ -26,6 +116,13 @@
       <h1 id="track-title">Track</h1>
       <p class="subtitle" id="track-desc"></p>
     </header>
+    <div id="research-input-area" class="research-input-area hidden">
+      <button id="research-mic-btn" class="mic-btn" title="Tap to speak">🎙️</button>
+      <input id="research-term-input" type="text" placeholder="Type or say a word or sentence..." />
+      <button id="research-submit-btn" class="send-btn">Look up</button>
+    </div>
+    <div id="research-status" class="mic-status"></div>
+
     <div id="scenario-list" class="card-list"></div>
   </section>
 
@@ -33,22 +130,35 @@
   <section id="screen-chat" class="screen">
     <header class="app-header chat-header">
       <button class="back-btn" data-back="screen-scenarios">&larr;</button>
-      <div>
+      <div class="chat-header-text">
         <h1 id="chat-title">Scenario</h1>
         <p class="subtitle" id="chat-level"></p>
       </div>
+      <button id="reset-btn" class="reset-btn" title="Start this story over">↻ Start over</button>
     </header>
 
+    <div id="story-progress" class="story-progress"></div>
+
     <div id="chat-log" class="chat-log"></div>
+
+    <div id="instruction-line" class="instruction-line"></div>
 
     <div id="feedback-card" class="feedback-card hidden">
       <div class="feedback-label">Coaching tip</div>
       <div id="feedback-corrected" class="feedback-corrected"></div>
       <div id="feedback-tip" class="feedback-tip"></div>
-      <button id="retry-btn" class="retry-btn hidden">Repeat this sentence out loud</button>
+      <button id="retry-btn" class="retry-btn hidden">Repeat this out loud</button>
+    </div>
+
+    <div id="done-card" class="done-card hidden">
+      <div class="done-title">🎉 Story complete!</div>
+      <p>Nice work retelling the whole thing.</p>
+      <button id="done-choose-btn" class="retry-btn">Choose another topic</button>
+      <button id="done-again-btn" class="secondary-btn">Practice this story again</button>
     </div>
 
     <div class="input-bar">
+      <button id="record-toggle-btn" class="record-toggle-btn" type="button" title="Tap to save your voice for your next attempt">⏺</button>
       <button id="mic-btn" class="mic-btn" title="Tap to speak">🎙️</button>
       <input id="text-input" type="text" placeholder="Or type your answer here..." />
       <button id="send-btn" class="send-btn">Send</button>
