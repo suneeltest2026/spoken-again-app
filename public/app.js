@@ -166,41 +166,88 @@
   const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   let recognizing = false;
+  let recognitionSupported = false;
+  let startWatchdog = null;
 
   if (SpeechRecognitionImpl) {
-    recognition = new SpeechRecognitionImpl();
-    recognition.lang = 'en-US';
-    recognition.interimResults = false;
-    recognition.continuous = false;
+    try {
+      recognition = new SpeechRecognitionImpl();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.continuous = false;
+      recognitionSupported = true;
 
-    recognition.onstart = () => {
-      recognizing = true;
-      el('mic-btn').classList.add('recording');
-      el('mic-status').textContent = 'Listening…';
-    };
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      el('text-input').value = transcript;
-      sendUserText(transcript);
-    };
-    recognition.onerror = (event) => {
-      el('mic-status').textContent = 'Mic error: ' + event.error + ' — you can type instead.';
-    };
-    recognition.onend = () => {
-      recognizing = false;
-      el('mic-btn').classList.remove('recording');
-      if (el('mic-status').textContent === 'Listening…') el('mic-status').textContent = '';
-    };
+      recognition.onstart = () => {
+        clearTimeout(startWatchdog);
+        recognizing = true;
+        el('mic-btn').classList.add('recording');
+        el('mic-status').textContent = 'Listening…';
+      };
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        el('text-input').value = transcript;
+        sendUserText(transcript);
+      };
+      recognition.onerror = (event) => {
+        clearTimeout(startWatchdog);
+        recognizing = false;
+        el('mic-btn').classList.remove('recording');
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          el('mic-status').textContent = 'Microphone permission was blocked — allow it in your browser settings, or just type your answer below.';
+        } else if (event.error === 'no-speech') {
+          el('mic-status').textContent = "Didn't catch that — tap the mic and try again, or type below.";
+        } else {
+          el('mic-status').textContent = 'Voice input had a problem (' + event.error + ') — you can type your answer below instead.';
+        }
+      };
+      recognition.onend = () => {
+        clearTimeout(startWatchdog);
+        recognizing = false;
+        el('mic-btn').classList.remove('recording');
+        if (el('mic-status').textContent === 'Listening…') el('mic-status').textContent = '';
+      };
+    } catch (e) {
+      recognitionSupported = false;
+    }
+  }
 
+  if (recognitionSupported) {
     el('mic-btn').addEventListener('click', () => startRecognitionIfAvailable());
   } else {
     el('mic-btn').style.display = 'none';
-    el('mic-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome, or type your answer below.';
+    el('mic-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type your answer below.';
   }
 
-  function startRecognitionIfAvailable() {
+  async function startRecognitionIfAvailable() {
     if (!recognition || recognizing) return;
-    try { recognition.start(); } catch (e) { /* already started */ }
+
+    // On some mobile browsers (notably iOS Safari), SpeechRecognition needs an
+    // explicit getUserMedia permission grant before it will actually start —
+    // otherwise it can fail silently. Ask for it directly first so we get a
+    // real permission prompt and a clear error if it's denied.
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      el('mic-status').textContent = 'Requesting microphone permission…';
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(t => t.stop());
+      } catch (permErr) {
+        el('mic-status').textContent = 'Microphone permission was denied — allow it in your browser/site settings, or just type your answer below.';
+        return;
+      }
+    }
+
+    el('mic-status').textContent = 'Starting mic…';
+    try {
+      recognition.start();
+      clearTimeout(startWatchdog);
+      startWatchdog = setTimeout(() => {
+        if (!recognizing) {
+          el('mic-status').textContent = "Mic isn't responding on this device — please type your answer below instead.";
+        }
+      }, 2500);
+    } catch (e) {
+      el('mic-status').textContent = 'Could not start the mic (' + (e.message || e.name || 'unknown error') + ') — please type your answer below instead.';
+    }
   }
 
   // ---------- Init ----------
