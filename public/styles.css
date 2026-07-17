@@ -49,7 +49,11 @@ html, body {
   margin-bottom: 16px;
   position: relative;
 }
-.app-header h1 { font-size: 1.5rem; marg; display: block; }
+.app-header h1 { font-size: 1.5rem; margin: 0; }
+.subtitle { color: var(--text-dim); margin: 0; font-size: 0.9rem; }
+.brand-lockup { display: flex; align-items: center; gap: 10px; }
+.brand-icon { width: 40px; height: 40px; flex-shrink: 0; }
+.brand-icon svg { width: 100%; height: 100%; display: block; }
 .brand-wordmark {
   font-family: 'Baloo 2', system-ui, sans-serif;
   font-weight: 700;
@@ -273,4 +277,327 @@ html, body {
   font-weight: 600;
   padding: 4px 9px;
   border-radius: 999px;
-  border: 1px solid rgba(52,
+  border: 1px solid rgba(52, 211, 153, 0.4);
+}
+.avatar-caption {
+  font-weight: 600;
+  color: var(--text) !important;
+  font-size: 0.95rem !important;
+}
+.avatar-upload-btn {
+  display: inline-block;
+  background: var(--accent);
+  color: #052e1f;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.avatar-upload-btn.secondary {
+  background: none;
+  border: 1px solid #334155;
+  color: var(--text-dim);
+}
+.hidden-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+.avatar-filled.hidden, .avatar-empty.hidden { display: none; }
+
+.flashcard-entry-card {
+  margin-top: 16px;
+  background: var(--panel);
+  border: 1px solid #334155;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.flashcard-entry-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #a78bfa22;
+  color: #a78bfa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+.flashcard-entry-text { flex: 1; min-width: 0; }
+.flashcard-entry-text h3 { margin: 0 0 4px 0; }
+.flashcard-entry-text p { margin: 0; color: var(--text-dim); font-size: 0.85rem; }
+.flashcard-entry-card .roleplay-btn { width: auto; margin-top: 0; flex-shrink: 0; padding: 9px 14px; }
+.flashcard-entry-card .roleplay-btn:disabled { opacity: 0.5; cursor: default; }
+
+#flashcard-empty.hidden { display: none; }
+#flashcard-empty { padding: 24px 4px; text-align: center; }
+
+#recordings-empty.hidden { display: none; }
+#recordings-empty { padding: 24px 4px; text-align: center; }
+
+.flashcard-stage {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 16px;
+}
+.flashcard-stage.hidden { display: none; }
+
+.flashcard-card {
+  position: relative;
+  flex: 1;
+  min-height: 320px;
+  perspective: 1200px;
+  cursor: pointer;
+}
+.flashcard-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 16px;
+  border: 1px solid #334155;
+  background: var(--panel);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  transition: transform 0.5s ease;
+  transform: rotateY(0deg);
+  overflow-y: auto;
+}
+.flashcard-back {
+  transform: rotateY(180deg);
+}
+.flashcard-card.flipped .flashcard-front {
+  transform: rotateY(-180deg);
+}
+.flashcard-card.flipped .flashcard-back {
+  transform: rotateY(0deg);
+}
+.flashcard-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+.flashcard-main-text { width: 100%; }
+.flashcard-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 6px; }
+.flashcard-sub { color: var(--text-dim); font-size: 0.9rem; font-style: italic; }
+.flashcard-hint { position: absolute; bottom: 14px; left: 0; right: 0; color: var(--text-dim); font-size: 0.78rem; margin: 0; }
+.flashcard-meaning { font-size: 1.05rem; margin-bottom: 12px; }
+.flashcard-examples { text-align: left; padding-left: 18px; margin: 0; color: var(--text-dim); font-size: 0.9rem; line-height: 1.5; }
+.flashcard-examples li { margin-bottom: 6px; }
+.flashcard-story-text { font-size: 0.98rem; line-height: 1.6; text-align: left; }
+
+.flashcard-controls {
+  display: flex;
+  gap: 8px;
+}
+.flashcard-controls.hidden { display: none; }
+.flashcard-controls button {
+  flex: 1;
+  margin-top: 0;
+  width: auto;
+}
+
+.roleplay-btn {
+  margin-top: 12px;
+  background: var(--accent);
+  color: #052e1f;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  width: 100%;
+}
+
+.chat-log {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 0 12px 0;
+}
+
+.bubble {
+  max-width: 82%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+.bubble.claude {
+  background: var(--claude-bubble);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+.bubble.user {
+  background: var(--user-bubble);
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+.bubble.system {
+  align-self: center;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  background: none;
+}
+.bubble.thinking {
+  font-style: italic;
+  color: var(--text-dim);
+  animation: think-pulse 1.2s ease-in-out infinite;
+}
+@keyframes think-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+.feedback-card {
+  background: var(--panel-light);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  font-size: 0.88rem;
+}
+.feedback-card.hidden { display: none; }
+.feedback-label { color: var(--accent); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+.feedback-corrected { margin-bottom: 6px; font-style: italic; }
+.feedback-tip { color: var(--text-dim); }
+
+.retry-btn {
+  margin-top: 10px;
+  background: var(--accent);
+  color: #052e1f;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+}
+.retry-btn.hidden { display: none; }
+
+.secondary-btn {
+  margin-top: 8px;
+  background: none;
+  color: var(--text-dim);
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+}
+
+.done-card {
+  background: var(--panel-light);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  padding: 16px 14px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.done-card.hidden { display: none; }
+.done-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+.done-card p { color: var(--text-dim); margin: 0 0 12px 0; font-size: 0.88rem; }
+
+.input-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid #334155;
+}
+
+.mic-btn {
+  background: var(--panel-light);
+  border: none;
+  font-size: 1.3rem;
+  border-radius: 50%;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.mic-btn.recording {
+  background: var(--danger);
+  animation: pulse 1s infinite;
+}
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(248,113,113,0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(248,113,113,0); }
+  100% { box-shadow: 0 0 0 0 rgba(248,113,113,0); }
+}
+
+.record-toggle-btn {
+  background: var(--panel-light);
+  border: 1px solid #334155;
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.record-toggle-btn.active {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.recordings-entry-icon {
+  background: #f8717122;
+  color: #f87171;
+}
+
+.recording-audio {
+  width: 100%;
+  margin-top: 10px;
+  display: block;
+}
+
+#text-input {
+  flex: 1;
+  background: var(--panel);
+  border: 1px solid #334155;
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+}
+
+.send-btn {
+  background: var(--accent);
+  color: #052e1f;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mic-status {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  min-height: 18px;
+  padding-top: 4px;
+}
