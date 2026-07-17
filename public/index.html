@@ -4,6 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Speaka Repeatu — Fluency Practice</title>
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -13,20 +18,40 @@
   <!-- SCREEN 1: choose track -->
   <section id="screen-tracks" class="screen active">
     <header class="app-header">
-      <h1>Speaka Repeatu</h1>
-      <p class="subtitle">Practice speaking English out loud with Claude</p>
+      <div class="brand-lockup">
+        <div class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+            <rect width="160" height="160" rx="35" fill="#f47f46" />
+            <rect x="28" y="38" width="104" height="84" rx="24" fill="#fbf3f0" />
+            <path d="M50 122 L70 122 L60 136 Z" fill="#fbf3f0" />
+            <rect x="51.5" y="68" width="9" height="24" rx="4.5" fill="#f47f46" />
+            <rect x="67.5" y="58" width="9" height="44" rx="4.5" fill="#f47f46" />
+            <rect x="83.5" y="72" width="9" height="16" rx="4.5" fill="#f47f46" />
+            <rect x="99.5" y="63" width="9" height="34" rx="4.5" fill="#f47f46" />
+          </svg>
+        </div>
+        <h1 class="brand-wordmark">Speaka Repeatu</h1>
+      </div>
+      <p class="subtitle">Speak more. Hesitate less.</p>
     </header>
     <div id="track-list" class="card-list"></div>
 
     <div id="avatar-card" class="avatar-card">
       <div id="avatar-empty" class="avatar-empty">
         <div class="avatar-placeholder">🙂</div>
-        <p>Create your learning buddy — turn a selfie into your own cartoon avatar.</p>
+        <p>Add your photo to picture yourself speaking confidently — in a meeting, an interview, with friends, or on stage.</p>
         <label class="avatar-upload-btn" for="avatar-file-input">📷 Take or choose a photo</label>
       </div>
       <div id="avatar-filled" class="avatar-filled hidden">
-        <img id="avatar-image" class="avatar-image" alt="Your cartoon avatar" />
-        <p class="avatar-caption">Your Learning Buddy</p>
+        <div class="vision-scene">
+          <div id="vision-scene-bg-wrap" class="vision-scene-bg-wrap"></div>
+          <img id="avatar-image" class="vision-photo" alt="You, speaking confidently" />
+          <div id="vision-caption-badge" class="vision-caption-badge"></div>
+          <button id="vision-prev-btn" class="vision-nav-btn vision-nav-prev" type="button" aria-label="Previous scene">‹</button>
+          <button id="vision-next-btn" class="vision-nav-btn vision-nav-next" type="button" aria-label="Next scene">›</button>
+        </div>
+        <div id="vision-dots" class="vision-dots"></div>
+        <p id="avatar-caption" class="avatar-caption">Picture this: you, leading the meeting in confident English.</p>
         <label class="avatar-upload-btn secondary" for="avatar-file-input">Retake photo</label>
       </div>
       <input id="avatar-file-input" type="file" accept="image/*" capture="user" class="hidden-file-input" />
