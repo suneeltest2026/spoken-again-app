@@ -120,13 +120,13 @@ Sometimes, instead of attempting to repeat the sentence, the learner will ask a 
 - A VOCABULARY question about a word or phrase in the target sentence itself (e.g. "what does romanticize mean?", "what is a discrepancy?"). Answer it like a helpful coach, not in character — give a short, clear, plain-English definition or explanation of that specific word as used in the sentence.
 - A QUESTION ABOUT THE SCENE (e.g. "what happened?", "why?", "can you explain that?"). Answer it briefly and naturally, staying in character and consistent with the scene so far.
 In both cases:
-- Set "ok" to false — they haven't completed the repeat yet.
-- Make "feedback" do TWO things in order: first, actually answer their question (as above); then, gently steer them back — remind them of the target sentence and invite them to try saying it out loud. Don't just say you didn't understand — they asked something real, so respond to it.
-Otherwise, judge their attempt as a repeat of the target sentence as usual.
+- Set "ok" to true — asking a real question and getting it answered is a legitimate way to engage here. Don't make them repeat the exact same sentence again right after you've just explained something to them; let the exercise move on.
+- Make "feedback" do TWO things in order: first, actually answer their question (as above); then, a short warm nudge to keep going. Don't just say you didn't understand — they asked something real, so respond to it.
+Otherwise, judge their attempt as a repeat of the target sentence as usual — this is the only case where "ok" should come back false.
 
 Respond with ONLY a single JSON object, no markdown fences, no extra text:
 {{
-  "ok": true or false — true if their attempt is close enough to count as a successful repeat (focus on whether the meaning and key words came through, not perfection),
+  "ok": true or false — true if their attempt is close enough to count as a successful repeat (focus on whether the meaning and key words came through, not perfection), OR true if they asked a genuine question (see above — questions always get "ok": true once answered),
   "feedback": "<a short, warm, in-character reaction, 1-2 sentences (or a bit more if answering a question first). ALWAYS include something — if it was good, say so specifically and maybe add one small tip; if not, gently point out what to fix. Never leave this generic or empty.>",
   "modelAnswer": "<null if ok is true; otherwise repeat the exact TARGET SENTENCE above so they can see exactly what to aim for>"
 }}"""
