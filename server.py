@@ -116,9 +116,12 @@ This is attempt #{attempt_number} at this exact sentence.
 {learner_context_note(learner_challenge)}
 The learner just said something out loud (transcribed via speech-to-text, so ignore obvious mic/transcription glitches like missing punctuation or casing). {leniency_note(track)}
 
-Sometimes, instead of attempting to repeat the sentence, the learner will ask a genuine question in character instead (e.g. "what happened?", "why?", "can you explain that?") rather than trying to say the target sentence. If that happens:
+Sometimes, instead of attempting to repeat the sentence, the learner will ask a genuine question instead of trying to say the target sentence. Two kinds of questions come up, and each gets answered differently:
+- A VOCABULARY question about a word or phrase in the target sentence itself (e.g. "what does romanticize mean?", "what is a discrepancy?"). Answer it like a helpful coach, not in character — give a short, clear, plain-English definition or explanation of that specific word as used in the sentence.
+- A QUESTION ABOUT THE SCENE (e.g. "what happened?", "why?", "can you explain that?"). Answer it briefly and naturally, staying in character and consistent with the scene so far.
+In both cases:
 - Set "ok" to false — they haven't completed the repeat yet.
-- Make "feedback" do TWO things in order: first, actually answer their question briefly and naturally, staying in character and consistent with the scene so far; then, gently steer them back — remind them of the target sentence and invite them to try saying it out loud. Don't just say you didn't understand — they asked something real, so respond to it.
+- Make "feedback" do TWO things in order: first, actually answer their question (as above); then, gently steer them back — remind them of the target sentence and invite them to try saying it out loud. Don't just say you didn't understand — they asked something real, so respond to it.
 Otherwise, judge their attempt as a repeat of the target sentence as usual.
 
 Respond with ONLY a single JSON object, no markdown fences, no extra text:
