@@ -145,6 +145,7 @@ html, body {
 .research-input-area.hidden { display: none; }
 .research-input-area input {
   flex: 1;
+  min-width: 0; /* let it actually shrink instead of overflowing the row once 3+ buttons share the row */
   background: var(--panel);
   border: 1px solid var(--line);
   color: var(--text);
@@ -592,8 +593,9 @@ html, body {
   display: block;
 }
 
-#text-input {
+.input-bar input {
   flex: 1;
+  min-width: 0; /* let it shrink instead of overflowing the row once 3+ buttons share it */
   background: var(--panel);
   border: 1px solid var(--line);
   color: var(--text);

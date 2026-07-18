@@ -1076,8 +1076,8 @@
     if (micTarget === 'research') return el('research-mic-btn');
     if (micTarget === 'custom') return el('custom-mic-btn');
     if (micTarget === 'onboarding') return el('onboarding-mic-btn');
-    if (micTarget === 'advice') return el('advice-mic-btn');
-    if (micTarget === 'advice-image') return el('advice-image-mic-btn');
+    if (micTarget === 'advice') return recordingViaButton ? el('advice-record-btn') : el('advice-mic-btn');
+    if (micTarget === 'advice-image') return recordingViaButton ? el('advice-image-record-btn') : el('advice-image-mic-btn');
     if (micTarget === 'chat' && recordingViaButton) return el('record-toggle-btn');
     return el('mic-btn');
   }
@@ -1089,6 +1089,24 @@
     if (micTarget === 'advice') return el('advice-status');
     if (micTarget === 'advice-image') return el('advice-image-status');
     return el('mic-status');
+  }
+
+  // Recording context for a one-off voice note (Ask & Get Advice) rather
+  // than a graded practice attempt — there's no fixed "sentence" to
+  // reference, so each note gets its own unique key (timestamp-based) so
+  // multiple recordings in one session don't overwrite each other, unlike
+  // repeat-mode recordings which intentionally replace the previous take of
+  // the same sentence.
+  function buildVoiceNoteRecordingContext(trackLabel, noteLabel, transcript) {
+    return {
+      trackKey: 'advice',
+      trackLabel,
+      scenarioId: `voice-${Date.now()}`,
+      scenarioTitle: noteLabel,
+      phase: 'note',
+      stepIndex: 0,
+      sentence: transcript,
+    };
   }
 
   if (SpeechRecognitionImpl) {
@@ -1114,9 +1132,15 @@
           el('custom-topic-input').value = transcript;
           submitCustomScenario(transcript, el('custom-level-select').value);
         } else if (micTarget === 'advice') {
+          if (activeRecorder) {
+            pendingRecordingContext = buildVoiceNoteRecordingContext('Ask & Get Advice', 'Describing a situation', transcript);
+          }
           el('advice-situation-input').value = transcript;
           submitAdviceRequest(transcript, el('advice-level-select').value);
         } else if (micTarget === 'advice-image') {
+          if (activeRecorder) {
+            pendingRecordingContext = buildVoiceNoteRecordingContext('Ask & Get Advice', 'Photo advice conversation', transcript);
+          }
           el('advice-image-input').value = '';
           sendAdviceImageTurn(transcript);
         } else if (micTarget === 'onboarding') {
@@ -1202,14 +1226,21 @@
   const mediaRecorderSupported = typeof MediaRecorder !== 'undefined';
   if (!mediaRecorderSupported) {
     el('record-toggle-btn').style.display = 'none';
+    el('advice-record-btn').style.display = 'none';
+    el('advice-image-record-btn').style.display = 'none';
   } else {
-    el('record-toggle-btn').addEventListener('click', () => {
-      if (recognizing) return; // already listening (from either button) — nothing to start
-      micTarget = 'chat';
-      recordThisAttempt = true;
-      recordingViaButton = true;
-      startRecognitionIfAvailable();
-    });
+    const wireRecordButton = (buttonId, target) => {
+      el(buttonId).addEventListener('click', () => {
+        if (recognizing) return; // already listening (from either button) — nothing to start
+        micTarget = target;
+        recordThisAttempt = true;
+        recordingViaButton = true;
+        startRecognitionIfAvailable();
+      });
+    };
+    wireRecordButton('record-toggle-btn', 'chat');
+    wireRecordButton('advice-record-btn', 'advice');
+    wireRecordButton('advice-image-record-btn', 'advice-image');
   }
 
   // Not every browser supports every recording format (iOS Safari in
@@ -1264,7 +1295,8 @@
   async function startRecognitionIfAvailable() {
     if (!recognition || recognizing) return;
     const statusEl = micStatusEl();
-    const wantsRecording = recordThisAttempt && mediaRecorderSupported && micTarget === 'chat';
+    const wantsRecording = recordThisAttempt && mediaRecorderSupported
+      && (micTarget === 'chat' || micTarget === 'advice' || micTarget === 'advice-image');
     recordThisAttempt = false; // one-shot — consumed here regardless of what happens next
 
     // On some mobile browsers (notably iOS Safari), SpeechRecognition needs an
