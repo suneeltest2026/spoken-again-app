@@ -591,6 +591,55 @@
     startFresh();
   });
 
+  // ---------- Deterministic question detection (repeat mode only) ----------
+  // Runs BEFORE the grading call so a genuine question never depends on the
+  // grading LLM correctly noticing and complying with a buried instruction
+  // — the client decides the routing, not the model.
+  const QUESTION_LEAD_WORDS = new Set([
+    'what', 'why', 'how', 'who', 'when', 'where', 'explain',
+    'is', 'are', 'does', 'do', 'did', 'would', 'should',
+    // common speech-to-text-friendly contractions of the above
+    "what's", "who's", "where's", "how's",
+    "isn't", "aren't", "doesn't", "don't", "didn't", "wouldn't", "shouldn't",
+  ]);
+  const QUESTION_LEAD_PHRASES = new Set(['can you', 'could you', 'meaning of']);
+
+  function normalizeWords(text) {
+    return (text || '').trim().toLowerCase()
+      .replace(/[^a-z0-9'\s]/g, '')
+      .split(/\s+/)
+      .filter(Boolean);
+  }
+
+  // True only if the learner's opening words are clearly a recitation of the
+  // target sentence's opening — protects target lines that are themselves
+  // phrased as questions (e.g. "What is your name?", "Do you have a store
+  // card?") from being misrouted away from grading.
+  function matchesTargetOpening(userWords, targetWords) {
+    const n = Math.min(3, targetWords.length, userWords.length);
+    if (n < 2) return false; // a single coincidental word match isn't "close enough"
+    for (let i = 0; i < n; i++) {
+      if (userWords[i] !== targetWords[i]) return false;
+    }
+    return true;
+  }
+
+  function startsWithQuestionLead(words) {
+    if (!words.length) return false;
+    if (QUESTION_LEAD_WORDS.has(words[0])) return true;
+    if (words.length >= 2 && QUESTION_LEAD_PHRASES.has(`${words[0]} ${words[1]}`)) return true;
+    return false;
+  }
+
+  function looksLikeQuestion(rawText, targetSentence) {
+    const trimmed = (rawText || '').trim();
+    if (!trimmed) return false;
+    const userWords = normalizeWords(trimmed);
+    const targetWords = normalizeWords(targetSentence);
+    if (matchesTargetOpening(userWords, targetWords)) return false; // treat as a real attempt
+    return /\?\s*$/.test(trimmed) || startsWithQuestionLead(userWords);
+  }
+
   // ---------- Talking to the server ----------
   const MAX_ATTEMPTS = 3; // after this many tries on the same step/retell, move on anyway so nobody gets stuck
 
@@ -666,6 +715,46 @@
     }
   }
 
+  // Handles the "asked a question instead of attempting the sentence" path,
+  // detected by looksLikeQuestion() before this is ever called. Not a graded
+  // attempt: it doesn't touch attemptNumber, doesn't call recordPracticeToday
+  // (that's reserved for real graded attempts), and doesn't advance — the
+  // learner is still expected to say the actual sentence next.
+  async function requestQuestionAnswer(userText) {
+    setBusy(true);
+    showThinkingIndicator();
+    try {
+      const body = {
+        track: state.scenario.level || state.track,
+        scenarioId: state.scenario.id,
+        mode: 'question',
+        userText,
+        stepIndex: state.stepIndex,
+        story: state.scenario.story,
+        character: state.scenario.character,
+        learnerChallenge: (loadOnboarding() || {}).challenge || undefined,
+      };
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      hideThinkingIndicator();
+      if (data.error) {
+        addSystemNote('⚠️ ' + data.error);
+        return;
+      }
+      pushClaudeBubble(data.feedback || 'Good question! Now try saying the sentence out loud.');
+      saveProgress();
+    } catch (e) {
+      hideThinkingIndicator();
+      addSystemNote('⚠️ Could not reach the server: ' + e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function advance() {
     if (state.phase === 'story') {
       state.stepIndex += 1;
@@ -693,7 +782,11 @@
     el('text-input').value = '';
     el('text-input').placeholder = 'Or type your answer here...';
     hideFeedback();
-    await requestJudgement(text);
+    if (state.phase === 'story' && looksLikeQuestion(text, state.scenario.story[state.stepIndex])) {
+      await requestQuestionAnswer(text);
+    } else {
+      await requestJudgement(text);
+    }
   }
 
   el('send-btn').addEventListener('click', () => sendUserText(el('text-input').value));
