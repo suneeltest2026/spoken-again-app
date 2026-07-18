@@ -211,6 +211,24 @@
     </div>
     <div id="custom-status" class="mic-status"></div>
 
+    <div id="advice-input-area" class="hidden">
+      <div class="custom-level-row">
+        <label for="advice-level-select">Level</label>
+        <select id="advice-level-select">
+          <option value="beginner">Beginner</option>
+          <option value="intermediate" selected>Intermediate</option>
+          <option value="advanced">Advanced</option>
+          <option value="business">Business</option>
+        </select>
+      </div>
+      <div class="research-input-area">
+        <button id="advice-mic-btn" class="mic-btn" title="Tap to speak">🎙️</button>
+        <input id="advice-situation-input" type="text" placeholder="What are you facing today? — e.g. a meeting where I have some doubts" />
+        <button id="advice-submit-btn" class="send-btn">💡 Get Advice</button>
+      </div>
+    </div>
+    <div id="advice-status" class="mic-status"></div>
+
     <div id="scenario-list" class="card-list"></div>
   </section>
 

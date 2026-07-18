@@ -14,6 +14,13 @@
     "scenarios": []
   },
   {
+    "key": "advice",
+    "label": "Ask & Get Advice",
+    "description": "Tell us what you're about to face — a meeting, an interview, a tough conversation — and get practical advice plus key phrases to practice.",
+    "dynamic": true,
+    "scenarios": []
+  },
+  {
     "key": "beginner",
     "label": "Beginner",
     "description": "Everyday survival English. Short sentences, present/past tense, common vocabulary.",

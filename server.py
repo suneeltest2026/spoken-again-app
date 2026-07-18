@@ -190,6 +190,21 @@ Respond with ONLY a single JSON object, no markdown fences, no extra text:
 }}"""
 
 
+def build_advice_prompt(level, situation):
+    return f"""The learner is about to face this real situation and wants help preparing for it: "{situation}"
+
+LEVEL: {level} — {level_instructions(level)}
+
+Give them practical, encouraging advice for handling this in English — what to expect, how to approach it, and any specific tips for their situation. Then give 4 to 6 natural, ready-to-use sentences or phrases they could actually say when this happens. Match the vocabulary and complexity to the LEVEL above.
+
+Respond with ONLY a single JSON object, no markdown fences, no extra text:
+{{
+  "title": "<short 3-6 word title for this situation>",
+  "advice": "<2 to 4 sentences of warm, practical, specific advice for this exact situation, speaking directly to the learner>",
+  "phrases": ["<useful phrase or sentence 1>", "<phrase 2>", "... 4 to 6 total, natural spoken English>"]
+}}"""
+
+
 def call_claude(system, user_text, max_tokens=400):
     resp = requests.post(
         ANTHROPIC_URL,
@@ -339,6 +354,42 @@ def generate_scenario():
             "title": parsed["title"],
             "character": parsed["character"],
             "story": story,
+            "level": level,
+        })
+    except requests.exceptions.HTTPError as e:
+        detail = e.response.text if e.response is not None else str(e)
+        return jsonify({"error": f"Claude request failed: {detail}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Claude request failed: {e}"}), 500
+
+
+@app.route("/api/generate-advice", methods=["POST"])
+def generate_advice():
+    if not API_KEY:
+        return jsonify({
+            "error": "No ANTHROPIC_API_KEY configured on the server. Add one to your .env file and restart the server."
+        }), 500
+
+    body = request.get_json(force=True) or {}
+    situation = (body.get("situation") or "").strip()
+    level = body.get("level") or "intermediate"
+    if level not in ("beginner", "intermediate", "advanced", "business"):
+        level = "intermediate"
+    if not situation:
+        return jsonify({"error": "Please describe what you're facing."}), 400
+    if len(situation) > 300:
+        return jsonify({"error": "That's a bit long — try a shorter description."}), 400
+
+    system = build_advice_prompt(level, situation)
+    try:
+        parsed = call_claude(system, situation, max_tokens=700)
+        phrases = parsed.get("phrases")
+        if not isinstance(phrases, list) or not phrases or not parsed.get("advice") or not parsed.get("title"):
+            return jsonify({"error": "Couldn't come up with advice for that — try describing it differently."}), 500
+        return jsonify({
+            "title": parsed["title"],
+            "advice": parsed["advice"],
+            "phrases": phrases,
             "level": level,
         })
     except requests.exceptions.HTTPError as e:

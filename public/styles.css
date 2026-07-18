@@ -160,6 +160,7 @@ html, body {
 #onboarding-skip-btn { margin-top: 10px; }
 
 #custom-input-area.hidden { display: none; }
+#advice-input-area.hidden { display: none; }
 .custom-level-row {
   display: flex;
   align-items: center;

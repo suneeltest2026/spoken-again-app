@@ -207,10 +207,26 @@
     return entry;
   }
 
+  function addAdviceEntry(title, advice, phrases, level) {
+    const index = getDynamicIndex('advice');
+    const entry = {
+      id: `${slugify(title)}-${Date.now()}`,
+      title,
+      advice,
+      character: 'a supportive speaking coach', // these are the learner's own lines, not a roleplay partner's
+      story: phrases,
+      level,
+    };
+    index.unshift(entry); // newest first
+    saveDynamicIndex('advice', index);
+    return entry;
+  }
+
   // ---------- Track visual identity (icon + accent color per track) ----------
   const TRACK_STYLES = {
     research: { icon: '🔍', color: '#8a80e0' },
     custom: { icon: '🎭', color: '#d98b7a' },
+    advice: { icon: '💡', color: '#7fa8d9' },
     beginner: { icon: '🌱', color: '#6fae6f' },
     intermediate: { icon: '🌿', color: '#5ba6a0' },
     advanced: { icon: '🌳', color: '#c97a4a' },
@@ -355,8 +371,11 @@
       : '';
     const preview = sc.meaning
       ? escapeHtml(sc.meaning)
+      : sc.advice
+      ? escapeHtml(sc.advice)
       : `with ${escapeHtml(sc.character)} — “${escapeHtml(sc.story[0])}”`;
-    card.innerHTML = `<h3>${escapeHtml(sc.title)}</h3><p class="card-preview">${preview}</p>${statusLine}<button class="roleplay-btn" type="button">▶ Start Roleplay</button>`;
+    const startLabel = sc.advice ? '▶ Start Practice' : '▶ Start Roleplay';
+    card.innerHTML = `<h3>${escapeHtml(sc.title)}</h3><p class="card-preview">${preview}</p>${statusLine}<button class="roleplay-btn" type="button">${startLabel}</button>`;
     card.addEventListener('click', () => openScenario(sc));
     list.appendChild(card);
   }
@@ -377,6 +396,8 @@
     el('research-status').textContent = '';
     el('custom-input-area').classList.toggle('hidden', key !== 'custom');
     el('custom-status').textContent = '';
+    el('advice-input-area').classList.toggle('hidden', key !== 'advice');
+    el('advice-status').textContent = '';
 
     const list = el('scenario-list');
     list.innerHTML = '';
@@ -388,6 +409,8 @@
         empty.className = 'subtitle';
         empty.textContent = key === 'custom'
           ? 'Nothing generated yet — describe a situation above to create your first custom scenario.'
+          : key === 'advice'
+          ? "Nothing yet — tell us what you're facing above to get advice and phrases to practice."
           : 'Nothing looked up yet — type a word or sentence above to get started.';
         list.appendChild(empty);
       }
@@ -463,6 +486,39 @@
     if (e.key === 'Enter') submitCustomScenario(el('custom-topic-input').value, el('custom-level-select').value);
   });
 
+  async function submitAdviceRequest(situation, level) {
+    situation = situation.trim();
+    if (!situation) return;
+    el('advice-submit-btn').disabled = true;
+    el('advice-status').textContent = 'Thinking it through…';
+    try {
+      const res = await fetch('/api/generate-advice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ situation, level }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        el('advice-status').textContent = '⚠️ ' + data.error;
+        return;
+      }
+      const entry = addAdviceEntry(data.title, data.advice, data.phrases, data.level);
+      el('advice-situation-input').value = '';
+      el('advice-status').textContent = '';
+      openScenario(entry);
+    } catch (e) {
+      el('advice-status').textContent = '⚠️ Could not reach the server: ' + e.message;
+    } finally {
+      el('advice-submit-btn').disabled = false;
+    }
+  }
+
+  el('advice-submit-btn').addEventListener('click', () =>
+    submitAdviceRequest(el('advice-situation-input').value, el('advice-level-select').value));
+  el('advice-situation-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitAdviceRequest(el('advice-situation-input').value, el('advice-level-select').value);
+  });
+
   // ---------- Entering a scenario ----------
   function openScenario(scenario) {
     state.scenario = scenario;
@@ -477,6 +533,9 @@
 
     if (scenario.meaning) {
       addSystemNote(`Meaning: ${scenario.meaning}`);
+    }
+    if (scenario.advice) {
+      addSystemNote(scenario.advice);
     }
 
     const saved = loadProgress(state.track, scenario.id);
@@ -859,7 +918,7 @@
   let recognizing = false;
   let recognitionSupported = false;
   let startWatchdog = null;
-  let micTarget = 'chat'; // 'chat' | 'research' | 'custom' | 'onboarding'
+  let micTarget = 'chat'; // 'chat' | 'research' | 'custom' | 'onboarding' | 'advice'
 
   // Voice recording — tapping the record button (⏺, left of the mic) starts
   // listening immediately AND captures the audio for that one answer, which
@@ -876,6 +935,7 @@
     if (micTarget === 'research') return el('research-mic-btn');
     if (micTarget === 'custom') return el('custom-mic-btn');
     if (micTarget === 'onboarding') return el('onboarding-mic-btn');
+    if (micTarget === 'advice') return el('advice-mic-btn');
     if (micTarget === 'chat' && recordingViaButton) return el('record-toggle-btn');
     return el('mic-btn');
   }
@@ -884,6 +944,7 @@
     if (micTarget === 'research') return el('research-status');
     if (micTarget === 'custom') return el('custom-status');
     if (micTarget === 'onboarding') return el('onboarding-status');
+    if (micTarget === 'advice') return el('advice-status');
     return el('mic-status');
   }
 
@@ -909,6 +970,9 @@
         } else if (micTarget === 'custom') {
           el('custom-topic-input').value = transcript;
           submitCustomScenario(transcript, el('custom-level-select').value);
+        } else if (micTarget === 'advice') {
+          el('advice-situation-input').value = transcript;
+          submitAdviceRequest(transcript, el('advice-level-select').value);
         } else if (micTarget === 'onboarding') {
           el('onboarding-input').value = transcript;
           submitOnboardingAnswer(transcript);
@@ -971,16 +1035,19 @@
     el('research-mic-btn').addEventListener('click', () => { micTarget = 'research'; startRecognitionIfAvailable(); });
     el('custom-mic-btn').addEventListener('click', () => { micTarget = 'custom'; startRecognitionIfAvailable(); });
     el('onboarding-mic-btn').addEventListener('click', () => { micTarget = 'onboarding'; startRecognitionIfAvailable(); });
+    el('advice-mic-btn').addEventListener('click', () => { micTarget = 'advice'; startRecognitionIfAvailable(); });
   } else {
     el('record-toggle-btn').style.display = 'none';
     el('mic-btn').style.display = 'none';
     el('research-mic-btn').style.display = 'none';
     el('custom-mic-btn').style.display = 'none';
     el('onboarding-mic-btn').style.display = 'none';
+    el('advice-mic-btn').style.display = 'none';
     el('mic-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type your answer below.';
     el('research-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type instead.';
     el('custom-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type instead.';
     el('onboarding-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type instead.';
+    el('advice-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type instead.';
   }
 
   const mediaRecorderSupported = typeof MediaRecorder !== 'undefined';
@@ -1220,6 +1287,20 @@
         front: entry.title,
         frontSub: `with ${entry.character}`,
         backHtml: `<p class="flashcard-story-text">${escapeHtml(entry.story.join(' '))}</p>`,
+      });
+    });
+
+    getDynamicIndex('advice').forEach(entry => {
+      const phrases = Array.isArray(entry.story) && entry.story.length
+        ? `<ul class="flashcard-examples">${entry.story.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>`
+        : '';
+      cards.push({
+        key: `advice:${entry.id}`,
+        tag: 'Ask & Get Advice',
+        color: trackStyle('advice').color,
+        front: entry.title,
+        frontSub: '',
+        backHtml: `<div class="flashcard-meaning">${escapeHtml(entry.advice || '')}</div>${phrases}`,
       });
     });
 
