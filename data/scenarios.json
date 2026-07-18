@@ -11,6 +11,7 @@
     "label": "Custom Scenario",
     "description": "Describe any situation you want to practice — a job interview, a landlord dispute, ordering at a specific restaurant — and get an instant custom roleplay.",
     "dynamic": true,
+    "category": "situation",
     "scenarios": []
   },
   {
@@ -18,6 +19,7 @@
     "label": "Ask & Get Advice",
     "description": "Tell us what you're about to face — a meeting, an interview, a tough conversation — and get practical advice plus key phrases to practice.",
     "dynamic": true,
+    "category": "situation",
     "scenarios": []
   },
   {

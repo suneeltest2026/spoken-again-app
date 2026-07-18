@@ -269,37 +269,55 @@
     list.appendChild(row);
   }
 
-  const PROFESSIONS_HUB_STYLE = { icon: '💼', color: '#c9a15a' };
+  // A "category" groups a few tracks behind one home-screen hub card instead
+  // of listing them all directly — used both for job-specific tracks
+  // (English for Professions) and for the two "describe a situation" tracks
+  // (Custom Scenario / Ask & Get Advice), which looked like near-duplicates
+  // sitting side by side on the home screen.
+  const CATEGORY_HUBS = {
+    professions: {
+      icon: '💼', color: '#c9a15a',
+      label: 'English for Professions',
+      description: 'Job- and industry-specific English — starting with Business & Accounting.',
+    },
+    situation: {
+      icon: '🗣️', color: '#b083c9',
+      label: 'Describe a Situation',
+      description: 'Practice a roleplay, or get advice for something real — you choose.',
+    },
+  };
 
   function renderTracks() {
     const list = el('track-list');
     list.innerHTML = '';
+    const seenCategories = new Set();
     state.tracks.forEach(track => {
-      if (track.category === 'professions') return; // shown under "English for Professions" instead
+      if (track.category && CATEGORY_HUBS[track.category]) {
+        seenCategories.add(track.category);
+        return; // shown under its category hub card instead
+      }
       const style = trackStyle(track.key);
       renderNavCard(list, { ...style, label: track.label, description: track.description }, () => openTrack(track.key));
     });
 
-    const professionTracks = state.tracks.filter(t => t.category === 'professions');
-    if (professionTracks.length) {
-      renderNavCard(list, {
-        ...PROFESSIONS_HUB_STYLE,
-        label: 'English for Professions',
-        description: 'Job- and industry-specific English — starting with Business & Accounting.',
-        tag: 'Collection',
-      }, openProfessions);
-    }
+    seenCategories.forEach(category => {
+      const hub = CATEGORY_HUBS[category];
+      renderNavCard(list, { ...hub, tag: 'Collection' }, () => openCategoryHub(category));
+    });
 
     renderMasthead();
     renderFlashcardEntry();
     renderRecordingsEntry();
   }
 
-  function openProfessions() {
-    setAccent(PROFESSIONS_HUB_STYLE.color);
+  function openCategoryHub(category) {
+    const hub = CATEGORY_HUBS[category];
+    setAccent(hub.color);
+    el('professions-title').textContent = hub.label;
+    el('professions-desc').textContent = hub.description;
     const list = el('professions-list');
     list.innerHTML = '';
-    state.tracks.filter(t => t.category === 'professions').forEach(track => {
+    state.tracks.filter(t => t.category === category).forEach(track => {
       const style = trackStyle(track.key);
       renderNavCard(list, { ...style, label: track.label, description: track.description }, () => openTrack(track.key));
     });
@@ -387,10 +405,11 @@
     el('track-title').textContent = track.label;
     el('track-desc').textContent = track.description;
     // Route the scenarios screen's back button to wherever this track is
-    // actually listed from — the home screen, or the "English for
-    // Professions" sub-list.
+    // actually listed from — the home screen directly, or a category hub
+    // sub-list (screen-professions is the one shared hub screen, reused for
+    // every category — see CATEGORY_HUBS).
     document.querySelector('#screen-scenarios .back-btn').dataset.back =
-      track.category === 'professions' ? 'screen-professions' : 'screen-tracks';
+      track.category && CATEGORY_HUBS[track.category] ? 'screen-professions' : 'screen-tracks';
 
     el('research-input-area').classList.toggle('hidden', key !== 'research');
     el('research-status').textContent = '';
