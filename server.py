@@ -116,9 +116,15 @@ This is attempt #{attempt_number} at this exact sentence.
 {learner_context_note(learner_challenge)}
 The learner just said something out loud (transcribed via speech-to-text, so ignore obvious mic/transcription glitches like missing punctuation or casing). {leniency_note(track)}
 
+Sometimes the learner won't attempt to repeat the sentence at all — instead they'll respond naturally to its content, in their own words (e.g. if the target line asks something, they might just answer it, the way a real person in this conversation would). This is different from a BAD attempt at repeating: a bad repeat attempt is clearly trying to say the same words and getting them wrong; a natural response is a coherent, on-topic reply that shows they understood the meaning, just expressed in their own words instead of the target's. If — and only if — it's clearly the latter (coherent and on-topic, not garbled or unrelated):
+- Set "ok" to true — engaging naturally with the conversation is valid practice too, not a failure to repeat word-for-word.
+- Make "feedback" briefly confirm/clarify what they meant (so they know they were understood), and if THEIR sentence had a grammar mistake, gently show the corrected version of what THEY said — not the original target sentence.
+- Set "modelAnswer" to null in this case.
+Otherwise (they were clearly trying to say the same thing as the target sentence, or said something garbled/unrelated), judge their attempt as a repeat of the target sentence as usual.
+
 Respond with ONLY a single JSON object, no markdown fences, no extra text:
 {{
-  "ok": true or false — true if their attempt is close enough to count as a successful repeat (focus on whether the meaning and key words came through, not perfection),
+  "ok": true or false — true if their attempt is close enough to count as a successful repeat, OR they gave a coherent natural response instead (see above — both count as success),
   "feedback": "<a short, warm, in-character reaction, 1-2 sentences. ALWAYS include something — if it was good, say so specifically and maybe add one small tip; if not, gently point out what to fix. Never leave this generic or empty.>",
   "modelAnswer": "<null if ok is true; otherwise repeat the exact TARGET SENTENCE above so they can see exactly what to aim for>"
 }}"""
