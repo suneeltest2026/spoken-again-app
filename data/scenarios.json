@@ -407,6 +407,7 @@
     "key": "business",
     "label": "Business & Accounting English",
     "description": "Meetings, presenting numbers, client calls, negotiation, and finance vocabulary.",
+    "category": "professions",
     "scenarios": [
       {
         "id": "meeting",

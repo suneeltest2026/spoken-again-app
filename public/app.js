@@ -24,8 +24,10 @@
       if (target === 'screen-scenarios' && state.track) {
         openTrack(state.track);
       } else {
-        if (target === 'screen-tracks') {
+        if (target === 'screen-tracks' || target === 'screen-professions') {
           setAccent(DEFAULT_ACCENT);
+        }
+        if (target === 'screen-tracks') {
           renderFlashcardEntry();
           renderRecordingsEntry();
         }
@@ -150,24 +152,55 @@
     renderTracks();
   }
 
+  // Shared by the home track list and the "English for Professions" sub-list
+  // — both just show a colored icon + label/description card that navigates
+  // somewhere on click.
+  function renderNavCard(list, { icon, color, label, description }, onClick) {
+    const card = document.createElement('div');
+    card.className = 'card track-card';
+    card.innerHTML = `
+      <div class="track-icon" style="background:${color}22;color:${color};">${icon}</div>
+      <div class="track-card-text">
+        <h3>${label}</h3>
+        <p>${description}</p>
+      </div>`;
+    card.addEventListener('click', onClick);
+    list.appendChild(card);
+  }
+
+  const PROFESSIONS_HUB_STYLE = { icon: '💼', color: '#fbbf24' };
+
   function renderTracks() {
     const list = el('track-list');
     list.innerHTML = '';
     state.tracks.forEach(track => {
+      if (track.category === 'professions') return; // shown under "English for Professions" instead
       const style = trackStyle(track.key);
-      const card = document.createElement('div');
-      card.className = 'card track-card';
-      card.innerHTML = `
-        <div class="track-icon" style="background:${style.color}22;color:${style.color};">${style.icon}</div>
-        <div class="track-card-text">
-          <h3>${track.label}</h3>
-          <p>${track.description}</p>
-        </div>`;
-      card.addEventListener('click', () => openTrack(track.key));
-      list.appendChild(card);
+      renderNavCard(list, { ...style, label: track.label, description: track.description }, () => openTrack(track.key));
     });
+
+    const professionTracks = state.tracks.filter(t => t.category === 'professions');
+    if (professionTracks.length) {
+      renderNavCard(list, {
+        ...PROFESSIONS_HUB_STYLE,
+        label: 'English for Professions',
+        description: 'Job- and industry-specific English — starting with Business & Accounting.',
+      }, openProfessions);
+    }
+
     renderFlashcardEntry();
     renderRecordingsEntry();
+  }
+
+  function openProfessions() {
+    setAccent(PROFESSIONS_HUB_STYLE.color);
+    const list = el('professions-list');
+    list.innerHTML = '';
+    state.tracks.filter(t => t.category === 'professions').forEach(track => {
+      const style = trackStyle(track.key);
+      renderNavCard(list, { ...style, label: track.label, description: track.description }, () => openTrack(track.key));
+    });
+    showScreen('screen-professions');
   }
 
   function findTrack(key) {
@@ -199,6 +232,11 @@
     setAccent(trackStyle(key).color);
     el('track-title').textContent = track.label;
     el('track-desc').textContent = track.description;
+    // Route the scenarios screen's back button to wherever this track is
+    // actually listed from — the home screen, or the "English for
+    // Professions" sub-list.
+    document.querySelector('#screen-scenarios .back-btn').dataset.back =
+      track.category === 'professions' ? 'screen-professions' : 'screen-tracks';
 
     el('research-input-area').classList.toggle('hidden', key !== 'research');
     el('research-status').textContent = '';
