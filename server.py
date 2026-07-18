@@ -139,7 +139,22 @@ Respond with ONLY a single JSON object, no markdown fences, no extra text:
 }}"""
 
 
-def call_claude(system, user_text):
+def build_generate_scenario_prompt(level, topic):
+    return f"""The learner wants to practice a custom roleplay scenario they described: "{topic}"
+
+LEVEL: {level} — {level_instructions(level)}
+
+Invent a short roleplay scenario based on what they described. Pick a believable character for the OTHER person in the scene (not the learner) — someone the learner would be listening to and responding to (e.g. "a strict landlord", "a nervous job candidate", "a barista who's had a long day"). Write 5 to 7 short lines that character would naturally say, in order, telling a coherent mini scene or conversation that matches what the learner described. Match the sentence length, vocabulary, and complexity to the LEVEL above.
+
+Respond with ONLY a single JSON object, no markdown fences, no extra text:
+{{
+  "title": "<short 3-6 word title for this scenario>",
+  "character": "<who is speaking, matching the learner's description>",
+  "story": ["<line 1>", "<line 2>", "... 5 to 7 lines total, natural spoken English>"]
+}}"""
+
+
+def call_claude(system, user_text, max_tokens=400):
     resp = requests.post(
         ANTHROPIC_URL,
         headers={
@@ -149,7 +164,7 @@ def call_claude(system, user_text):
         },
         json={
             "model": MODEL,
-            "max_tokens": 400,
+            "max_tokens": max_tokens,
             "system": system,
             "messages": [{"role": "user", "content": user_text or "(no speech captured)"}],
         },
@@ -236,6 +251,42 @@ def research_term():
         if not isinstance(sentences, list) or not sentences:
             return jsonify({"error": "Couldn't come up with examples for that — try a different word or sentence."}), 500
         return jsonify({"meaning": parsed.get("meaning") or "", "sentences": sentences})
+    except requests.exceptions.HTTPError as e:
+        detail = e.response.text if e.response is not None else str(e)
+        return jsonify({"error": f"Claude request failed: {detail}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Claude request failed: {e}"}), 500
+
+
+@app.route("/api/generate-scenario", methods=["POST"])
+def generate_scenario():
+    if not API_KEY:
+        return jsonify({
+            "error": "No ANTHROPIC_API_KEY configured on the server. Add one to your .env file and restart the server."
+        }), 500
+
+    body = request.get_json(force=True) or {}
+    topic = (body.get("topic") or "").strip()
+    level = body.get("level") or "intermediate"
+    if level not in ("beginner", "intermediate", "advanced", "business"):
+        level = "intermediate"
+    if not topic:
+        return jsonify({"error": "Please describe a situation to practice."}), 400
+    if len(topic) > 300:
+        return jsonify({"error": "That's a bit long — try a shorter description."}), 400
+
+    system = build_generate_scenario_prompt(level, topic)
+    try:
+        parsed = call_claude(system, topic, max_tokens=700)
+        story = parsed.get("story")
+        if not isinstance(story, list) or not story or not parsed.get("character") or not parsed.get("title"):
+            return jsonify({"error": "Couldn't come up with a scenario for that — try describing it differently."}), 500
+        return jsonify({
+            "title": parsed["title"],
+            "character": parsed["character"],
+            "story": story,
+            "level": level,
+        })
     except requests.exceptions.HTTPError as e:
         detail = e.response.text if e.response is not None else str(e)
         return jsonify({"error": f"Claude request failed: {detail}"}), 500

@@ -134,6 +134,24 @@ html, body {
   font-size: 0.95rem;
 }
 
+#custom-input-area.hidden { display: none; }
+.custom-level-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+.custom-level-row select {
+  background: var(--panel);
+  border: 1px solid #334155;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+}
+
 .card {
   background: var(--panel);
   border: 1px solid #334155;

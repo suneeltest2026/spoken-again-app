@@ -7,6 +7,13 @@
     "scenarios": []
   },
   {
+    "key": "custom",
+    "label": "Custom Scenario",
+    "description": "Describe any situation you want to practice — a job interview, a landlord dispute, ordering at a specific restaurant — and get an instant custom roleplay.",
+    "dynamic": true,
+    "scenarios": []
+  },
+  {
     "key": "beginner",
     "label": "Beginner",
     "description": "Everyday survival English. Short sentences, present/past tense, common vocabulary.",

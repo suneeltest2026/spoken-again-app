@@ -62,20 +62,25 @@
     localStorage.removeItem(storageKey(track, scenarioId));
   }
 
-  // ---------- Research history (list of previously looked-up words/sentences) ----------
-  const RESEARCH_INDEX_KEY = 'speakAgain:v2:research:index';
+  // ---------- Dynamic-track history (Research lookups, generated Custom scenarios) ----------
+  // Each dynamic track (one whose scenarios aren't fixed server-side) keeps
+  // its own persisted list, keyed by track so Research entries and Custom
+  // Scenario entries don't collide with each other.
+  function dynamicIndexKey(trackKey) {
+    return `speakAgain:v2:dynamic:${trackKey}:index`;
+  }
 
-  function getResearchIndex() {
+  function getDynamicIndex(trackKey) {
     try {
-      const raw = localStorage.getItem(RESEARCH_INDEX_KEY);
+      const raw = localStorage.getItem(dynamicIndexKey(trackKey));
       return raw ? JSON.parse(raw) : [];
     } catch (e) {
       return [];
     }
   }
 
-  function saveResearchIndex(list) {
-    localStorage.setItem(RESEARCH_INDEX_KEY, JSON.stringify(list));
+  function saveDynamicIndex(trackKey, list) {
+    localStorage.setItem(dynamicIndexKey(trackKey), JSON.stringify(list));
   }
 
   function slugify(term) {
@@ -83,13 +88,13 @@
   }
 
   function upsertResearchEntry(term, meaning, sentences) {
-    const index = getResearchIndex();
+    const index = getDynamicIndex('research');
     const normalized = term.trim().toLowerCase();
     const existing = index.find(e => e.term.trim().toLowerCase() === normalized);
     if (existing) {
       existing.meaning = meaning;
       existing.story = sentences;
-      saveResearchIndex(index);
+      saveDynamicIndex('research', index);
       return existing;
     }
     const entry = {
@@ -101,13 +106,28 @@
       story: sentences,
     };
     index.unshift(entry); // newest first
-    saveResearchIndex(index);
+    saveDynamicIndex('research', index);
+    return entry;
+  }
+
+  function addCustomScenarioEntry(title, character, story, level) {
+    const index = getDynamicIndex('custom');
+    const entry = {
+      id: `${slugify(title)}-${Date.now()}`,
+      title,
+      character,
+      story,
+      level,
+    };
+    index.unshift(entry); // newest first
+    saveDynamicIndex('custom', index);
     return entry;
   }
 
   // ---------- Track visual identity (icon + accent color per track) ----------
   const TRACK_STYLES = {
     research: { icon: '🔍', color: '#a78bfa' },
+    custom: { icon: '🎭', color: '#f472b6' },
     beginner: { icon: '🌱', color: '#34d399' },
     intermediate: { icon: '🌿', color: '#60a5fa' },
     advanced: { icon: '🌳', color: '#fb923c' },
@@ -180,18 +200,22 @@
     el('track-title').textContent = track.label;
     el('track-desc').textContent = track.description;
 
-    el('research-input-area').classList.toggle('hidden', !track.dynamic);
+    el('research-input-area').classList.toggle('hidden', key !== 'research');
     el('research-status').textContent = '';
+    el('custom-input-area').classList.toggle('hidden', key !== 'custom');
+    el('custom-status').textContent = '';
 
     const list = el('scenario-list');
     list.innerHTML = '';
 
     if (track.dynamic) {
-      const history = getResearchIndex();
+      const history = getDynamicIndex(key);
       if (!history.length) {
         const empty = document.createElement('p');
         empty.className = 'subtitle';
-        empty.textContent = 'Nothing looked up yet — type a word or sentence above to get started.';
+        empty.textContent = key === 'custom'
+          ? 'Nothing generated yet — describe a situation above to create your first custom scenario.'
+          : 'Nothing looked up yet — type a word or sentence above to get started.';
         list.appendChild(empty);
       }
       history.forEach(entry => renderScenarioCard(list, entry, key));
@@ -233,11 +257,46 @@
     if (e.key === 'Enter') submitResearchTerm(el('research-term-input').value);
   });
 
+  async function submitCustomScenario(topic, level) {
+    topic = topic.trim();
+    if (!topic) return;
+    el('custom-submit-btn').disabled = true;
+    el('custom-status').textContent = 'Writing your scenario…';
+    try {
+      const res = await fetch('/api/generate-scenario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic, level }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        el('custom-status').textContent = '⚠️ ' + data.error;
+        return;
+      }
+      const entry = addCustomScenarioEntry(data.title, data.character, data.story, data.level);
+      el('custom-topic-input').value = '';
+      el('custom-status').textContent = '';
+      openScenario(entry);
+    } catch (e) {
+      el('custom-status').textContent = '⚠️ Could not reach the server: ' + e.message;
+    } finally {
+      el('custom-submit-btn').disabled = false;
+    }
+  }
+
+  el('custom-submit-btn').addEventListener('click', () =>
+    submitCustomScenario(el('custom-topic-input').value, el('custom-level-select').value));
+  el('custom-topic-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitCustomScenario(el('custom-topic-input').value, el('custom-level-select').value);
+  });
+
   // ---------- Entering a scenario ----------
   function openScenario(scenario) {
     state.scenario = scenario;
     el('chat-title').textContent = scenario.title;
-    el('chat-level').textContent = findTrack(state.track).label;
+    el('chat-level').textContent = scenario.level
+      ? `${findTrack(state.track).label} · ${scenario.level[0].toUpperCase()}${scenario.level.slice(1)}`
+      : findTrack(state.track).label;
     el('chat-log').innerHTML = '';
     hideFeedback();
     hideDone();
@@ -381,7 +440,10 @@
     showThinkingIndicator();
     try {
       const body = {
-        track: state.track,
+        // Generated Custom scenarios carry the level they were written for
+        // (e.g. "beginner") so grading/feedback tone matches that level,
+        // rather than the generic "custom" track key.
+        track: state.scenario.level || state.track,
         scenarioId: state.scenario.id,
         mode: state.phase === 'retell' ? 'retell' : 'repeat',
         userText,
@@ -843,7 +905,7 @@
   function collectFlashcards() {
     const cards = [];
 
-    getResearchIndex().forEach(entry => {
+    getDynamicIndex('research').forEach(entry => {
       const examples = Array.isArray(entry.story) && entry.story.length
         ? `<ul class="flashcard-examples">${entry.story.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>`
         : '';
@@ -854,6 +916,17 @@
         front: entry.term,
         frontSub: '',
         backHtml: `<div class="flashcard-meaning">${escapeHtml(entry.meaning || '')}</div>${examples}`,
+      });
+    });
+
+    getDynamicIndex('custom').forEach(entry => {
+      cards.push({
+        key: `custom:${entry.id}`,
+        tag: 'Custom Scenario',
+        color: trackStyle('custom').color,
+        front: entry.title,
+        frontSub: `with ${entry.character}`,
+        backHtml: `<p class="flashcard-story-text">${escapeHtml(entry.story.join(' '))}</p>`,
       });
     });
 
