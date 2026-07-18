@@ -738,170 +738,17 @@
     }
   }
 
-  // ---------- "Picture yourself" vision scene (home screen) ----------
+  // ---------- "Picture yourself" photo widget (home screen) ----------
   // NOTE: an earlier version of this feature tried to auto-convert the photo
-  // into a "cartoon" using a per-pixel edge-detect + posterize filter. On
-  // clean test images it looked fine, but on real phone photos (with sensor
-  // noise / JPEG compression) it produced glitchy red/black speckled results
-  // no matter how the thresholds were tuned. That was scrapped entirely — the
-  // photo is now used as-is (cropped to a circle, slightly boosted color) and
-  // composited into a hand-drawn SVG scene via plain CSS positioning. No
-  // pixel-level filtering of the photo at all, so there's no glitch risk.
+  // into a "cartoon" using a per-pixel edge-detect + posterize filter, and a
+  // later version composited it into a hand-drawn cartoon SVG scene. Both
+  // were scrapped — the user's actual photo is now shown as-is (cropped to
+  // a circle, slightly boosted color), with no illustrated overlay at all.
   const AVATAR_KEY = 'speakAgain:v2:avatar';
-  const VISION_SCENE_INDEX_KEY = 'speakAgain:v2:visionSceneIndex';
-
-  // Each scene is a self-contained SVG background (400x260 viewBox) plus the
-  // percentage-based position/size to place the user's circular photo so it
-  // lines up with the "presenter" body drawn in that scene.
-  const VISION_SCENES = [
-    {
-      id: 'meeting',
-      caption: 'Picture this: you, leading the meeting in confident English.',
-      badge: 'Speaking fluently 🎤',
-      photoStyle: { left: '27.8%', top: '55.5%', width: '17.5%' },
-      svg: `
-        <rect x="0" y="0" width="400" height="170" fill="#26314d" />
-        <rect x="0" y="170" width="400" height="90" fill="#1a2138" />
-        <rect x="292" y="24" width="82" height="102" rx="4" fill="#4a6f93" stroke="#0f1424" stroke-width="3" />
-        <line x1="333" y1="24" x2="333" y2="126" stroke="#0f1424" stroke-width="3" />
-        <line x1="292" y1="75" x2="374" y2="75" stroke="#0f1424" stroke-width="3" />
-        <rect x="28" y="34" width="122" height="76" rx="4" fill="#eef2f7" stroke="#0f1424" stroke-width="3" />
-        <rect x="44" y="86" width="13" height="16" fill="#34d399" />
-        <rect x="63" y="74" width="13" height="28" fill="#34d399" />
-        <rect x="82" y="58" width="13" height="44" fill="#34d399" />
-        <rect x="101" y="46" width="13" height="56" fill="#34d399" />
-        <polyline points="44,88 63,76 82,60 101,48" stroke="#059669" stroke-width="2.5" fill="none" />
-        <ellipse cx="252" cy="214" rx="132" ry="26" fill="#5c3c22" />
-        <ellipse cx="252" cy="204" rx="132" ry="26" fill="#8a5a34" />
-        <circle cx="205" cy="177" r="13" fill="#64748b" />
-        <path d="M180 208 Q180 190 205 190 Q230 190 230 208 Z" fill="#475569" />
-        <circle cx="258" cy="174" r="13" fill="#7c8ba1" />
-        <path d="M233 206 Q233 187 258 187 Q283 187 283 206 Z" fill="#526080" />
-        <circle cx="311" cy="179" r="12" fill="#5c6b85" />
-        <path d="M288 208 Q288 191 311 191 Q334 191 334 208 Z" fill="#414f68" />
-        <path d="M74 224 Q74 158 111 155 Q148 158 148 224 Z" fill="#0d9c74" />
-        <path d="M96 168 L111 178 L126 168 L120 160 L102 160 Z" fill="#f1f5f9" />
-      `,
-    },
-    {
-      id: 'interview',
-      caption: 'Picture this: you, answering confidently in the interview.',
-      badge: 'Nailing the interview 💼',
-      photoStyle: { left: '26.25%', top: '53.8%', width: '16%' },
-      svg: `
-        <rect x="0" y="0" width="400" height="170" fill="#26314d" />
-        <rect x="0" y="170" width="400" height="90" fill="#1a2138" />
-        <rect x="300" y="28" width="70" height="50" rx="4" fill="#eef2f7" stroke="#0f1424" stroke-width="3" />
-        <circle cx="335" cy="45" r="10" fill="none" stroke="#34d399" stroke-width="3" />
-        <path d="M329 53 L329 68 L335 62 L341 68 L341 53 Z" fill="#34d399" />
-        <rect x="350" y="175" width="30" height="22" rx="3" fill="#4a2f18" />
-        <ellipse cx="358" cy="160" rx="8" ry="16" fill="#0d9c74" />
-        <ellipse cx="368" cy="155" rx="8" ry="18" fill="#059669" />
-        <ellipse cx="376" cy="163" rx="8" ry="15" fill="#0d9c74" />
-        <rect x="140" y="175" width="220" height="16" rx="3" fill="#6b4423" />
-        <rect x="140" y="191" width="220" height="48" fill="#4a2f18" />
-        <rect x="225" y="163" width="55" height="8" rx="2" fill="#334155" />
-        <rect x="230" y="140" width="45" height="26" rx="2" fill="#1e293b" stroke="#0f1424" stroke-width="2" />
-        <circle cx="330" cy="148" r="14" fill="#64748b" />
-        <path d="M305 178 Q305 160 330 160 Q355 160 355 178 Z" fill="#475569" />
-        <rect x="165" y="180" width="32" height="22" rx="2" fill="#eef2f7" stroke="#0f1424" stroke-width="1.5" />
-        <line x1="170" y1="188" x2="190" y2="188" stroke="#94a3b8" stroke-width="1.5" />
-        <line x1="170" y1="193" x2="185" y2="193" stroke="#94a3b8" stroke-width="1.5" />
-        <rect x="65" y="145" width="80" height="70" rx="14" fill="#2f3b57" />
-        <path d="M65 235 Q65 175 105 172 Q145 175 145 235 Z" fill="#0d9c74" />
-      `,
-    },
-    {
-      id: 'friends',
-      caption: 'Picture this: you, chatting easily with friends in English.',
-      badge: 'Just relaxed chat 😄',
-      photoStyle: { left: '50%', top: '54.2%', width: '17%' },
-      svg: `
-        <rect x="0" y="0" width="400" height="140" fill="#33475f" />
-        <rect x="0" y="140" width="400" height="120" fill="#24344a" />
-        <line x1="0" y1="18" x2="400" y2="18" stroke="#0f1424" stroke-width="2" opacity="0.4" />
-        <circle cx="20" cy="18" r="3" fill="#fbbf24" /><circle cx="65" cy="18" r="3" fill="#fbbf24" />
-        <circle cx="110" cy="18" r="3" fill="#fbbf24" /><circle cx="155" cy="18" r="3" fill="#fbbf24" />
-        <circle cx="200" cy="18" r="3" fill="#fbbf24" /><circle cx="245" cy="18" r="3" fill="#fbbf24" />
-        <circle cx="290" cy="18" r="3" fill="#fbbf24" /><circle cx="335" cy="18" r="3" fill="#fbbf24" />
-        <circle cx="380" cy="18" r="3" fill="#fbbf24" />
-        <ellipse cx="200" cy="213" rx="95" ry="23" fill="#5c3c22" />
-        <ellipse cx="200" cy="203" rx="95" ry="23" fill="#8a5a34" />
-        <ellipse cx="175" cy="196" rx="9" ry="5" fill="#eef2f7" />
-        <ellipse cx="225" cy="196" rx="9" ry="5" fill="#eef2f7" />
-        <circle cx="110" cy="172" r="15" fill="#7c8ba1" />
-        <path d="M83 222 Q83 185 110 182 Q137 185 137 222 Z" fill="#526080" />
-        <circle cx="292" cy="176" r="14" fill="#64748b" />
-        <path d="M266 220 Q266 186 292 183 Q318 186 318 220 Z" fill="#475569" />
-        <path d="M163 240 Q163 178 200 175 Q237 178 237 240 Z" fill="#0d9c74" />
-      `,
-    },
-    {
-      id: 'stage',
-      caption: 'Picture this: you, speaking confidently on stage.',
-      badge: 'Center stage 🎙️',
-      photoStyle: { left: '50%', top: '42.3%', width: '16%' },
-      svg: `
-        <rect x="0" y="0" width="400" height="170" fill="#1a2138" />
-        <line x1="30" y1="0" x2="30" y2="170" stroke="#10162a" stroke-width="6" opacity="0.5" />
-        <line x1="90" y1="0" x2="90" y2="170" stroke="#10162a" stroke-width="6" opacity="0.5" />
-        <line x1="150" y1="0" x2="150" y2="170" stroke="#10162a" stroke-width="6" opacity="0.5" />
-        <line x1="250" y1="0" x2="250" y2="170" stroke="#10162a" stroke-width="6" opacity="0.5" />
-        <line x1="310" y1="0" x2="310" y2="170" stroke="#10162a" stroke-width="6" opacity="0.5" />
-        <line x1="370" y1="0" x2="370" y2="170" stroke="#10162a" stroke-width="6" opacity="0.5" />
-        <rect x="0" y="170" width="400" height="90" fill="#11172a" />
-        <polygon points="200,0 150,175 250,175" fill="#fff8e1" opacity="0.10" />
-        <circle cx="20" cy="250" r="7" fill="#334155" /><circle cx="50" cy="252" r="7" fill="#26314d" />
-        <circle cx="80" cy="250" r="7" fill="#334155" /><circle cx="110" cy="252" r="7" fill="#26314d" />
-        <circle cx="140" cy="250" r="7" fill="#334155" /><circle cx="290" cy="250" r="7" fill="#334155" />
-        <circle cx="320" cy="252" r="7" fill="#26314d" /><circle cx="350" cy="250" r="7" fill="#334155" />
-        <circle cx="380" cy="252" r="7" fill="#26314d" />
-        <path d="M172 210 L228 210 L218 258 L182 258 Z" fill="#4a2f18" stroke="#0f1424" stroke-width="2" />
-        <rect x="182" y="222" width="36" height="6" fill="#34d399" opacity="0.8" />
-        <path d="M172 205 Q172 145 200 142 Q228 145 228 205 Z" fill="#0d9c74" />
-      `,
-    },
-  ];
 
   function loadAvatar() {
     return localStorage.getItem(AVATAR_KEY);
   }
-
-  function loadVisionSceneIndex() {
-    const raw = parseInt(localStorage.getItem(VISION_SCENE_INDEX_KEY), 10);
-    return Number.isInteger(raw) && raw >= 0 && raw < VISION_SCENES.length ? raw : 0;
-  }
-
-  function renderVisionScene(index) {
-    const scene = VISION_SCENES[index];
-    el('vision-scene-bg-wrap').innerHTML =
-      `<svg viewBox="0 0 400 260" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${scene.svg}</svg>`;
-    const photo = el('avatar-image');
-    photo.style.left = scene.photoStyle.left;
-    photo.style.top = scene.photoStyle.top;
-    photo.style.width = scene.photoStyle.width;
-    el('vision-caption-badge').textContent = scene.badge;
-    el('avatar-caption').textContent = scene.caption;
-    const dots = el('vision-dots');
-    dots.innerHTML = '';
-    VISION_SCENES.forEach((s, i) => {
-      const dot = document.createElement('button');
-      dot.type = 'button';
-      dot.className = 'vision-dot' + (i === index ? ' active' : '');
-      dot.setAttribute('aria-label', 'Show ' + s.id + ' scene');
-      dot.addEventListener('click', () => setVisionScene(i));
-      dots.appendChild(dot);
-    });
-  }
-
-  function setVisionScene(index) {
-    const wrapped = ((index % VISION_SCENES.length) + VISION_SCENES.length) % VISION_SCENES.length;
-    localStorage.setItem(VISION_SCENE_INDEX_KEY, String(wrapped));
-    renderVisionScene(wrapped);
-  }
-
-  el('vision-prev-btn').addEventListener('click', () => setVisionScene(loadVisionSceneIndex() - 1));
-  el('vision-next-btn').addEventListener('click', () => setVisionScene(loadVisionSceneIndex() + 1));
 
   function renderAvatarWidget() {
     const saved = loadAvatar();
@@ -909,7 +756,6 @@
     el('avatar-filled').classList.toggle('hidden', !saved);
     if (saved) {
       el('avatar-image').src = saved;
-      renderVisionScene(loadVisionSceneIndex());
     }
   }
 
@@ -932,9 +778,8 @@
         // A subtle, always-safe color boost (no per-pixel edge/posterize
         // logic) so the photo looks a little brighter/warmer without any
         // risk of the glitchy artifacts the old cartoon filter produced on
-        // real phone photos. The photo itself renders in a clean circular
-        // frame composited into the chosen scene (see .vision-photo in
-        // styles.css).
+        // real phone photos. The photo itself renders as-is in a clean
+        // circular frame (see .avatar-photo in styles.css).
         ctx.filter = 'saturate(1.15) contrast(1.05)';
         ctx.drawImage(img, sx, sy, sw, sh, 0, 0, size, size);
         localStorage.setItem(AVATAR_KEY, canvas.toDataURL('image/jpeg', 0.85));
