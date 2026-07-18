@@ -154,6 +154,11 @@ html, body {
   font-family: var(--font-body);
 }
 
+#onboarding-compose.hidden { display: none; }
+#onboarding-continue-row.hidden { display: none; }
+#onboarding-continue-row { padding: 8px 0 4px 0; }
+#onboarding-skip-btn { margin-top: 10px; }
+
 #custom-input-area.hidden { display: none; }
 .custom-level-row {
   display: flex;

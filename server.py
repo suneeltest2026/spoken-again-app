@@ -93,7 +93,18 @@ def leniency_note(track):
     }.get(track, "Use your best judgment on how close this needs to be.")
 
 
-def build_repeat_system_prompt(track, character, story, step_index, attempt_number):
+def learner_context_note(learner_challenge):
+    if not learner_challenge:
+        return ""
+    return (
+        f"\nABOUT THIS LEARNER: when they set up the app, they said the hardest part "
+        f"of speaking English for them is: \"{learner_challenge}\". Keep that in mind — "
+        f"where it's genuinely relevant to this attempt, let your feedback speak to that "
+        f"specific struggle instead of generic corrections. Don't force it in if it doesn't fit.\n"
+    )
+
+
+def build_repeat_system_prompt(track, character, story, step_index, attempt_number, learner_challenge=None):
     target_sentence = story[step_index]
     scene_so_far = " ".join(story[:step_index]) if step_index > 0 else "(this is the first line of the scene)"
     return f"""You are coaching a spoken-English learner through a "listen and repeat" exercise. Stay in character as {character} the whole time, including in your feedback — react the way that character naturally would, just warmer and more encouraging since this is a practice space.
@@ -102,7 +113,7 @@ LEVEL: {track} — {level_instructions(track)}
 WHAT {character.upper()} HAS ALREADY SAID IN THIS SCENE: {scene_so_far}
 TARGET SENTENCE THE LEARNER IS TRYING TO REPEAT RIGHT NOW: "{target_sentence}"
 This is attempt #{attempt_number} at this exact sentence.
-
+{learner_context_note(learner_challenge)}
 The learner just said something out loud (transcribed via speech-to-text, so ignore obvious mic/transcription glitches like missing punctuation or casing). {leniency_note(track)}
 
 Sometimes, instead of attempting to repeat the sentence, the learner will ask a genuine question in character instead (e.g. "what happened?", "why?", "can you explain that?") rather than trying to say the target sentence. If that happens:
@@ -118,13 +129,13 @@ Respond with ONLY a single JSON object, no markdown fences, no extra text:
 }}"""
 
 
-def build_retell_system_prompt(track, character, full_story, attempt_number):
+def build_retell_system_prompt(track, character, full_story, attempt_number, learner_challenge=None):
     return f"""You are coaching a spoken-English learner who just finished learning a short story, sentence by sentence, and is now retelling the WHOLE story from memory in their own words. Stay in character as {character} the whole time, including in your feedback.
 
 LEVEL: {track} — {level_instructions(track)}
 THE FULL STORY (what they are trying to retell): "{full_story}"
 This is attempt #{attempt_number} at retelling it.
-
+{learner_context_note(learner_challenge)}
 The learner just retold the story out loud (transcribed via speech-to-text, so ignore obvious mic/transcription glitches). Judge their retelling generously — they don't need exact wording, just the key events/details in roughly the right order.
 
 Respond with ONLY a single JSON object, no markdown fences, no extra text:
@@ -203,6 +214,9 @@ def chat():
     user_text = (body.get("userText") or "").strip()
     attempt_number = body.get("attemptNumber") or 1
     step_index = body.get("stepIndex")
+    # Set once during onboarding (see /api/onboarding-note usage in app.js) and
+    # resent on every chat turn so the coach can tailor feedback to it.
+    learner_challenge = (body.get("learnerChallenge") or "").strip()[:300] or None
 
     track_data = find_track(track)
     scenario = find_scenario(track_data, scenario_id)
@@ -222,9 +236,9 @@ def chat():
     if mode == "repeat":
         if step_index is None or not isinstance(step_index, int) or step_index < 0 or step_index >= len(story):
             return jsonify({"error": "Invalid story step."}), 400
-        system = build_repeat_system_prompt(track, character, story, step_index, attempt_number)
+        system = build_repeat_system_prompt(track, character, story, step_index, attempt_number, learner_challenge)
     elif mode == "retell":
-        system = build_retell_system_prompt(track, character, " ".join(story), attempt_number)
+        system = build_retell_system_prompt(track, character, " ".join(story), attempt_number, learner_challenge)
     else:
         return jsonify({"error": "Unknown mode — expected 'repeat' or 'retell'."}), 400
 

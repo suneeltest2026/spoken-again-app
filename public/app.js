@@ -16,6 +16,86 @@
     el(id).classList.add('active');
   }
 
+  // ---------- First-launch onboarding (personalization intake) ----------
+  // Two quick questions ("what's your day like", "what's hardest for you")
+  // asked once, chat-bubble style. The "hardest part" answer is resent with
+  // every /api/chat request so the coach's feedback can speak to it.
+  const ONBOARDING_KEY = 'speakAgain:v2:onboarding';
+  const ONBOARDING_QUESTIONS = [
+    { key: 'dailyRoutine', prompt: "Hey — quick one before we start. What's your day usually like, morning to evening?" },
+    { key: 'challenge', prompt: "Good to know. And what's the hardest part about speaking English for you?" },
+  ];
+  let onboardingIndex = 0;
+  const onboardingAnswers = {};
+
+  function loadOnboarding() {
+    try {
+      const raw = localStorage.getItem(ONBOARDING_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveOnboarding(skipped) {
+    localStorage.setItem(ONBOARDING_KEY, JSON.stringify({
+      dailyRoutine: onboardingAnswers.dailyRoutine || '',
+      challenge: onboardingAnswers.challenge || '',
+      skipped: !!skipped,
+      completedAt: Date.now(),
+    }));
+  }
+
+  function addOnboardingBubble(role, text) {
+    const bubble = document.createElement('div');
+    bubble.className = `bubble ${role === 'claude' ? 'claude' : 'user'}`;
+    bubble.textContent = text;
+    el('onboarding-log').appendChild(bubble);
+    el('onboarding-log').scrollTop = el('onboarding-log').scrollHeight;
+  }
+
+  function askOnboardingQuestion() {
+    addOnboardingBubble('claude', ONBOARDING_QUESTIONS[onboardingIndex].prompt);
+  }
+
+  function submitOnboardingAnswer(text) {
+    text = text.trim();
+    if (!text) return;
+    addOnboardingBubble('user', text);
+    onboardingAnswers[ONBOARDING_QUESTIONS[onboardingIndex].key] = text;
+    el('onboarding-input').value = '';
+    onboardingIndex += 1;
+    if (onboardingIndex < ONBOARDING_QUESTIONS.length) {
+      askOnboardingQuestion();
+    } else {
+      addOnboardingBubble('claude', "Thanks — I'll keep that in mind while we practice. Let's go!");
+      el('onboarding-compose').classList.add('hidden');
+      el('onboarding-continue-row').classList.remove('hidden');
+    }
+  }
+
+  function enterApp() {
+    setAccent(DEFAULT_ACCENT);
+    showScreen('screen-tracks');
+  }
+
+  el('onboarding-send-btn').addEventListener('click', () => submitOnboardingAnswer(el('onboarding-input').value));
+  el('onboarding-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitOnboardingAnswer(el('onboarding-input').value);
+  });
+  el('onboarding-skip-btn').addEventListener('click', () => { saveOnboarding(true); enterApp(); });
+  el('onboarding-continue-btn').addEventListener('click', () => { saveOnboarding(false); enterApp(); });
+
+  function startOnboardingIfNeeded() {
+    if (loadOnboarding()) return; // already asked (answered or skipped) before
+    onboardingIndex = 0;
+    el('onboarding-log').innerHTML = '';
+    el('onboarding-compose').classList.remove('hidden');
+    el('onboarding-continue-row').classList.add('hidden');
+    askOnboardingQuestion();
+    showScreen('screen-onboarding');
+  }
+
   document.querySelectorAll('[data-back]').forEach(btn => {
     btn.addEventListener('click', () => {
       const target = btn.dataset.back;
@@ -546,6 +626,9 @@
         // their own server-side story data instead.
         story: state.scenario.story,
         character: state.scenario.character,
+        // From the first-launch onboarding intake, if answered — lets the
+        // coach's feedback speak to the learner's self-reported struggle.
+        learnerChallenge: (loadOnboarding() || {}).challenge || undefined,
       };
       if (state.phase === 'story') body.stepIndex = state.stepIndex;
 
@@ -683,7 +766,7 @@
   let recognizing = false;
   let recognitionSupported = false;
   let startWatchdog = null;
-  let micTarget = 'chat'; // 'chat' | 'research' | 'custom'
+  let micTarget = 'chat'; // 'chat' | 'research' | 'custom' | 'onboarding'
 
   // Voice recording (opt-in, per attempt) — captured alongside recognition
   // when the "Save my voice" toggle is on, so it's saved right next to the
@@ -697,12 +780,14 @@
   function micButtonEl() {
     if (micTarget === 'research') return el('research-mic-btn');
     if (micTarget === 'custom') return el('custom-mic-btn');
+    if (micTarget === 'onboarding') return el('onboarding-mic-btn');
     return el('mic-btn');
   }
 
   function micStatusEl() {
     if (micTarget === 'research') return el('research-status');
     if (micTarget === 'custom') return el('custom-status');
+    if (micTarget === 'onboarding') return el('onboarding-status');
     return el('mic-status');
   }
 
@@ -728,6 +813,9 @@
         } else if (micTarget === 'custom') {
           el('custom-topic-input').value = transcript;
           submitCustomScenario(transcript, el('custom-level-select').value);
+        } else if (micTarget === 'onboarding') {
+          el('onboarding-input').value = transcript;
+          submitOnboardingAnswer(transcript);
         } else {
           // Capture the sentence/scenario context now, before sendUserText
           // triggers grading and possibly advances to the next sentence.
@@ -785,14 +873,17 @@
     el('mic-btn').addEventListener('click', () => { micTarget = 'chat'; startRecognitionIfAvailable(); });
     el('research-mic-btn').addEventListener('click', () => { micTarget = 'research'; startRecognitionIfAvailable(); });
     el('custom-mic-btn').addEventListener('click', () => { micTarget = 'custom'; startRecognitionIfAvailable(); });
+    el('onboarding-mic-btn').addEventListener('click', () => { micTarget = 'onboarding'; startRecognitionIfAvailable(); });
   } else {
     el('record-toggle-btn').style.display = 'none';
     el('mic-btn').style.display = 'none';
     el('research-mic-btn').style.display = 'none';
     el('custom-mic-btn').style.display = 'none';
+    el('onboarding-mic-btn').style.display = 'none';
     el('mic-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type your answer below.';
     el('research-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type instead.';
     el('custom-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type instead.';
+    el('onboarding-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type instead.';
   }
 
   const mediaRecorderSupported = typeof MediaRecorder !== 'undefined';
@@ -1327,6 +1418,7 @@
   el('recordings-entry-btn').addEventListener('click', openRecordings);
 
   // ---------- Init ----------
+  startOnboardingIfNeeded(); // first, so screen-tracks never flashes before it
   renderDayTag();
   loadScenarios();
   renderAvatarWidget();

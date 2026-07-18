@@ -20,6 +20,30 @@
 
 <div id="app">
 
+  <!-- SCREEN 0: first-launch onboarding (personalization intake) -->
+  <section id="screen-onboarding" class="screen">
+    <header class="app-header">
+      <h1>Let's personalize this</h1>
+      <p class="subtitle">Two quick questions, then let's practice.</p>
+    </header>
+
+    <div id="onboarding-log" class="chat-log"></div>
+
+    <div id="onboarding-continue-row" class="hidden">
+      <button id="onboarding-continue-btn" class="roleplay-btn" type="button">Continue →</button>
+    </div>
+
+    <div id="onboarding-compose">
+      <div class="input-bar">
+        <button id="onboarding-mic-btn" class="mic-btn" title="Tap to speak">🎙️</button>
+        <input id="onboarding-input" type="text" placeholder="Type your answer..." />
+        <button id="onboarding-send-btn" class="send-btn">Send</button>
+      </div>
+      <div id="onboarding-status" class="mic-status"></div>
+      <button id="onboarding-skip-btn" class="secondary-btn" type="button">Skip for now</button>
+    </div>
+  </section>
+
   <!-- SCREEN 1: choose track -->
   <section id="screen-tracks" class="screen active">
     <header class="app-header">
