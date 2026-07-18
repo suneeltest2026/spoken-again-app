@@ -768,10 +768,12 @@
   let startWatchdog = null;
   let micTarget = 'chat'; // 'chat' | 'research' | 'custom' | 'onboarding'
 
-  // Voice recording (opt-in, per attempt) — captured alongside recognition
-  // when the "Save my voice" toggle is on, so it's saved right next to the
-  // transcript without needing a second recording flow.
-  let recordEnabled = false;
+  // Voice recording — tapping the record button (⏺, left of the mic) starts
+  // listening immediately AND captures the audio for that one answer, which
+  // then shows up in My Recordings. It's a one-shot action, not a toggle you
+  // have to remember to turn off.
+  let recordThisAttempt = false; // set true only for the in-flight recognition session started via the record button
+  let recordingViaButton = false; // which button to show the "recording" pulse on
   let activeRecorder = null;
   let activeRecorderChunks = [];
   let pendingRecordingContext = null; // sentence/scenario context, captured before state mutates
@@ -781,6 +783,7 @@
     if (micTarget === 'research') return el('research-mic-btn');
     if (micTarget === 'custom') return el('custom-mic-btn');
     if (micTarget === 'onboarding') return el('onboarding-mic-btn');
+    if (micTarget === 'chat' && recordingViaButton) return el('record-toggle-btn');
     return el('mic-btn');
   }
 
@@ -863,6 +866,7 @@
         } else {
           pendingRecordingContext = null;
         }
+        recordingViaButton = false;
       };
     } catch (e) {
       recognitionSupported = false;
@@ -891,12 +895,11 @@
     el('record-toggle-btn').style.display = 'none';
   } else {
     el('record-toggle-btn').addEventListener('click', () => {
-      recordEnabled = !recordEnabled;
-      const btn = el('record-toggle-btn');
-      btn.classList.toggle('active', recordEnabled);
-      btn.title = recordEnabled
-        ? 'Saving your voice for your next attempt — tap to turn off'
-        : 'Tap to save your voice for your next attempt';
+      if (recognizing) return; // already listening (from either button) — nothing to start
+      micTarget = 'chat';
+      recordThisAttempt = true;
+      recordingViaButton = true;
+      startRecognitionIfAvailable();
     });
   }
 
@@ -952,7 +955,8 @@
   async function startRecognitionIfAvailable() {
     if (!recognition || recognizing) return;
     const statusEl = micStatusEl();
-    const wantsRecording = recordEnabled && mediaRecorderSupported && micTarget === 'chat';
+    const wantsRecording = recordThisAttempt && mediaRecorderSupported && micTarget === 'chat';
+    recordThisAttempt = false; // one-shot — consumed here regardless of what happens next
 
     // On some mobile browsers (notably iOS Safari), SpeechRecognition needs an
     // explicit getUserMedia permission grant before it will actually start —
@@ -977,6 +981,7 @@
         }
       } catch (permErr) {
         statusEl.textContent = 'Microphone permission was denied — allow it in your browser/site settings, or just type instead.';
+        recordingViaButton = false;
         return;
       }
     }

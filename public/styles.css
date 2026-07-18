@@ -558,10 +558,11 @@ html, body {
   flex-shrink: 0;
   cursor: pointer;
 }
-.record-toggle-btn.active {
+.record-toggle-btn.recording {
   background: var(--danger);
   border-color: var(--danger);
   color: #fff;
+  animation: pulse 1s infinite;
 }
 
 .recording-audio {
