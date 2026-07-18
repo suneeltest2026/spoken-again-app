@@ -589,7 +589,7 @@
   let recognizing = false;
   let recognitionSupported = false;
   let startWatchdog = null;
-  let micTarget = 'chat'; // 'chat' | 'research'
+  let micTarget = 'chat'; // 'chat' | 'research' | 'custom'
 
   // Voice recording (opt-in, per attempt) — captured alongside recognition
   // when the "Save my voice" toggle is on, so it's saved right next to the
@@ -601,11 +601,15 @@
   let micPermissionGranted = false; // avoids re-requesting getUserMedia (slow) on every single tap
 
   function micButtonEl() {
-    return micTarget === 'research' ? el('research-mic-btn') : el('mic-btn');
+    if (micTarget === 'research') return el('research-mic-btn');
+    if (micTarget === 'custom') return el('custom-mic-btn');
+    return el('mic-btn');
   }
 
   function micStatusEl() {
-    return micTarget === 'research' ? el('research-status') : el('mic-status');
+    if (micTarget === 'research') return el('research-status');
+    if (micTarget === 'custom') return el('custom-status');
+    return el('mic-status');
   }
 
   if (SpeechRecognitionImpl) {
@@ -627,6 +631,9 @@
         if (micTarget === 'research') {
           el('research-term-input').value = transcript;
           submitResearchTerm(transcript);
+        } else if (micTarget === 'custom') {
+          el('custom-topic-input').value = transcript;
+          submitCustomScenario(transcript, el('custom-level-select').value);
         } else {
           // Capture the sentence/scenario context now, before sendUserText
           // triggers grading and possibly advances to the next sentence.
@@ -683,12 +690,15 @@
   if (recognitionSupported) {
     el('mic-btn').addEventListener('click', () => { micTarget = 'chat'; startRecognitionIfAvailable(); });
     el('research-mic-btn').addEventListener('click', () => { micTarget = 'research'; startRecognitionIfAvailable(); });
+    el('custom-mic-btn').addEventListener('click', () => { micTarget = 'custom'; startRecognitionIfAvailable(); });
   } else {
     el('record-toggle-btn').style.display = 'none';
     el('mic-btn').style.display = 'none';
     el('research-mic-btn').style.display = 'none';
+    el('custom-mic-btn').style.display = 'none';
     el('mic-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type your answer below.';
     el('research-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type instead.';
+    el('custom-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type instead.';
   }
 
   const mediaRecorderSupported = typeof MediaRecorder !== 'undefined';
