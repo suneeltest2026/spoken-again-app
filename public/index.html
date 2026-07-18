@@ -7,13 +7,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Speaka Repeatu" />
 <meta name="mobile-web-app-capable" content="yes" />
-<meta name="theme-color" content="#0f172a" />
+<meta name="theme-color" content="#0f1719" />
 <title>Speaka Repeatu — Fluency Practice</title>
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png" />
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -26,51 +26,64 @@
       <div class="brand-lockup">
         <div class="brand-icon" aria-hidden="true">
           <svg viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
-            <rect width="160" height="160" rx="35" fill="#f47f46" />
-            <rect x="28" y="38" width="104" height="84" rx="24" fill="#fbf3f0" />
-            <path d="M50 122 L70 122 L60 136 Z" fill="#fbf3f0" />
-            <rect x="51.5" y="68" width="9" height="24" rx="4.5" fill="#f47f46" />
-            <rect x="67.5" y="58" width="9" height="44" rx="4.5" fill="#f47f46" />
-            <rect x="83.5" y="72" width="9" height="16" rx="4.5" fill="#f47f46" />
-            <rect x="99.5" y="63" width="9" height="34" rx="4.5" fill="#f47f46" />
+            <rect width="160" height="160" rx="28" fill="#172023" />
+            <rect x="28" y="38" width="104" height="84" rx="24" fill="#c9a15a" />
+            <path d="M50 122 L70 122 L60 136 Z" fill="#c9a15a" />
+            <rect x="51.5" y="68" width="9" height="24" rx="4.5" fill="#172023" />
+            <rect x="67.5" y="58" width="9" height="44" rx="4.5" fill="#172023" />
+            <rect x="83.5" y="72" width="9" height="16" rx="4.5" fill="#172023" />
+            <rect x="99.5" y="63" width="9" height="34" rx="4.5" fill="#172023" />
           </svg>
         </div>
         <h1 class="brand-wordmark">Speaka Repeatu</h1>
+        <span id="day-tag" class="day-tag"></span>
       </div>
-      <p class="subtitle">Speak more. Hesitate less.</p>
     </header>
-    <div id="track-list" class="card-list"></div>
 
-    <div id="avatar-card" class="avatar-card">
-      <div id="avatar-empty" class="avatar-empty">
-        <div class="avatar-placeholder">🙂</div>
-        <p>Add your photo to picture yourself speaking confidently — in a meeting, an interview, with friends, or on stage.</p>
-        <label class="avatar-upload-btn" for="avatar-file-input">📷 Take or choose a photo</label>
+    <div id="masthead" class="masthead">
+      <div class="masthead-row">
+        <div id="masthead-num" class="masthead-num">00</div>
+        <div class="masthead-text">
+          <h2>days practiced</h2>
+          <p>this week</p>
+        </div>
       </div>
-      <div id="avatar-filled" class="avatar-filled hidden">
-        <img id="avatar-image" class="avatar-photo" alt="Your photo" />
-        <p class="avatar-caption">Picture this: you, speaking confidently — in a meeting, an interview, with friends, or on stage.</p>
-        <label class="avatar-upload-btn secondary" for="avatar-file-input">Retake photo</label>
+      <div class="masthead-rule"></div>
+    </div>
+
+    <p class="section-label">Practice tracks</p>
+    <div id="track-list" class="nav-list"></div>
+
+    <div id="avatar-card" class="photo-row">
+      <div id="avatar-empty" class="photo-empty">
+        <label class="photo-frame" for="avatar-file-input">🙂</label>
+        <div class="photo-text">
+          <p>Add your photo to picture yourself speaking confidently — in a meeting, an interview, with friends, or on stage.</p>
+          <label class="photo-link" for="avatar-file-input">Take a photo →</label>
+        </div>
+      </div>
+      <div id="avatar-filled" class="photo-filled hidden">
+        <img id="avatar-image" class="photo-frame photo-frame-img" alt="Your photo" />
+        <div class="photo-text">
+          <p>Picture this: you, speaking confidently — in a meeting, an interview, with friends, or on stage.</p>
+          <label class="photo-link" for="avatar-file-input">Retake photo →</label>
+        </div>
       </div>
       <input id="avatar-file-input" type="file" accept="image/*" capture="user" class="hidden-file-input" />
     </div>
 
-    <div id="flashcard-entry" class="flashcard-entry-card">
-      <div class="flashcard-entry-icon">📚</div>
-      <div class="flashcard-entry-text">
-        <h3>Flashcard Review</h3>
-        <p id="flashcard-entry-sub">Complete a story or look up a word to start building your deck.</p>
-      </div>
-      <button id="flashcard-entry-btn" class="roleplay-btn" type="button" disabled>Review</button>
-    </div>
+    <div class="stat-row">
+      <button id="flashcard-entry-btn" class="stat-card" type="button" disabled>
+        <span class="stat-icon">📚</span>
+        <span class="stat-title">Flashcard Review</span>
+        <span id="flashcard-entry-sub" class="stat-sub">Complete a story or look up a word to start building your deck.</span>
+      </button>
 
-    <div id="recordings-entry" class="flashcard-entry-card">
-      <div class="flashcard-entry-icon recordings-entry-icon">🎙️</div>
-      <div class="flashcard-entry-text">
-        <h3>My Recordings</h3>
-        <p id="recordings-entry-sub">Turn on "Save my voice" (⏺) next to the mic while practicing to start collecting clips.</p>
-      </div>
-      <button id="recordings-entry-btn" class="roleplay-btn" type="button" disabled>Listen</button>
+      <button id="recordings-entry-btn" class="stat-card" type="button" disabled>
+        <span class="stat-icon">🎙️</span>
+        <span class="stat-title">My Recordings</span>
+        <span id="recordings-entry-sub" class="stat-sub">Turn on "Save my voice" (⏺) next to the mic while practicing to start collecting clips.</span>
+      </button>
     </div>
   </section>
 
@@ -81,7 +94,7 @@
       <h1>English for Professions</h1>
       <p class="subtitle">Job- and industry-specific English tracks.</p>
     </header>
-    <div id="professions-list" class="card-list"></div>
+    <div id="professions-list" class="nav-list"></div>
   </section>
 
   <!-- SCREEN: recordings -->

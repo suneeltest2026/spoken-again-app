@@ -28,6 +28,7 @@
           setAccent(DEFAULT_ACCENT);
         }
         if (target === 'screen-tracks') {
+          renderMasthead();
           renderFlashcardEntry();
           renderRecordingsEntry();
         }
@@ -128,14 +129,14 @@
 
   // ---------- Track visual identity (icon + accent color per track) ----------
   const TRACK_STYLES = {
-    research: { icon: '🔍', color: '#a78bfa' },
-    custom: { icon: '🎭', color: '#f472b6' },
-    beginner: { icon: '🌱', color: '#34d399' },
-    intermediate: { icon: '🌿', color: '#60a5fa' },
-    advanced: { icon: '🌳', color: '#fb923c' },
-    business: { icon: '💼', color: '#fbbf24' },
+    research: { icon: '🔍', color: '#8a80e0' },
+    custom: { icon: '🎭', color: '#d98b7a' },
+    beginner: { icon: '🌱', color: '#6fae6f' },
+    intermediate: { icon: '🌿', color: '#5ba6a0' },
+    advanced: { icon: '🌳', color: '#c97a4a' },
+    business: { icon: '💼', color: '#c9a15a' },
   };
-  const DEFAULT_ACCENT = '#34d399';
+  const DEFAULT_ACCENT = '#c9a15a';
 
   function trackStyle(key) {
     return TRACK_STYLES[key] || { icon: '💬', color: DEFAULT_ACCENT };
@@ -153,22 +154,26 @@
   }
 
   // Shared by the home track list and the "English for Professions" sub-list
-  // — both just show a colored icon + label/description card that navigates
-  // somewhere on click.
-  function renderNavCard(list, { icon, color, label, description }, onClick) {
-    const card = document.createElement('div');
-    card.className = 'card track-card';
-    card.innerHTML = `
-      <div class="track-icon" style="background:${color}22;color:${color};">${icon}</div>
-      <div class="track-card-text">
-        <h3>${label}</h3>
-        <p>${description}</p>
-      </div>`;
-    card.addEventListener('click', onClick);
-    list.appendChild(card);
+  // — both are a thin row with a colored left rule, an icon, a label/
+  // description, and an arrow, that navigates somewhere on click.
+  function renderNavCard(list, { icon, color, label, description, tag }, onClick) {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'nav-row';
+    row.style.setProperty('--row-hue', color);
+    const tagHtml = tag ? `<span class="row-tag">${escapeHtml(tag)}</span>` : '';
+    row.innerHTML = `
+      <span class="row-icon">${icon}</span>
+      <span class="row-text">
+        <h3>${escapeHtml(label)}${tagHtml}</h3>
+        <p>${escapeHtml(description)}</p>
+      </span>
+      <span class="row-go">→</span>`;
+    row.addEventListener('click', onClick);
+    list.appendChild(row);
   }
 
-  const PROFESSIONS_HUB_STYLE = { icon: '💼', color: '#fbbf24' };
+  const PROFESSIONS_HUB_STYLE = { icon: '💼', color: '#c9a15a' };
 
   function renderTracks() {
     const list = el('track-list');
@@ -185,9 +190,11 @@
         ...PROFESSIONS_HUB_STYLE,
         label: 'English for Professions',
         description: 'Job- and industry-specific English — starting with Business & Accounting.',
+        tag: 'Collection',
       }, openProfessions);
     }
 
+    renderMasthead();
     renderFlashcardEntry();
     renderRecordingsEntry();
   }
@@ -201,6 +208,54 @@
       renderNavCard(list, { ...style, label: track.label, description: track.description }, () => openTrack(track.key));
     });
     showScreen('screen-professions');
+  }
+
+  // ---------- Practice-days masthead stat (home screen) ----------
+  // A distinct calendar date is recorded every time the learner completes a
+  // graded attempt (repeat or retell), regardless of whether it was judged
+  // correct — "practiced" means showed up and tried, not "got it right".
+  const PRACTICE_DATES_KEY = 'speakAgain:v2:practiceDates';
+
+  function loadPracticeDates() {
+    try {
+      const raw = localStorage.getItem(PRACTICE_DATES_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function recordPracticeToday() {
+    const dates = loadPracticeDates();
+    const today = todayStr();
+    if (!dates.includes(today)) {
+      dates.push(today);
+      localStorage.setItem(PRACTICE_DATES_KEY, JSON.stringify(dates));
+    }
+  }
+
+  function weekStartStr(dateStr) {
+    const d = dateFromStr(dateStr);
+    const day = d.getDay(); // 0 = Sunday
+    d.setDate(d.getDate() - (day === 0 ? 6 : day - 1)); // back up to Monday
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function getWeekPracticeCount() {
+    const start = weekStartStr(todayStr());
+    const end = addDays(start, 6);
+    return loadPracticeDates().filter(d => d >= start && d <= end).length;
+  }
+
+  function renderMasthead() {
+    el('masthead-num').textContent = String(getWeekPracticeCount()).padStart(2, '0');
+  }
+
+  function renderDayTag() {
+    const now = new Date();
+    const weekday = now.toLocaleDateString(undefined, { weekday: 'short' });
+    const monthDay = now.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    el('day-tag').textContent = `${weekday.toUpperCase()} · ${monthDay.toUpperCase()}`;
   }
 
   function findTrack(key) {
@@ -505,6 +560,7 @@
         addSystemNote('⚠️ ' + data.error);
         return;
       }
+      recordPracticeToday();
 
       const forcedAdvance = !data.ok && state.attemptNumber >= MAX_ATTEMPTS;
       showFeedback(data.feedback, data.ok ? null : data.modelAnswer);
@@ -889,7 +945,7 @@
         // logic) so the photo looks a little brighter/warmer without any
         // risk of the glitchy artifacts the old cartoon filter produced on
         // real phone photos. The photo itself renders as-is in a clean
-        // circular frame (see .avatar-photo in styles.css).
+        // circular frame (see .photo-frame-img in styles.css).
         ctx.filter = 'saturate(1.15) contrast(1.05)';
         ctx.drawImage(img, sx, sy, sw, sh, 0, 0, size, size);
         localStorage.setItem(AVATAR_KEY, canvas.toDataURL('image/jpeg', 0.85));
@@ -1271,6 +1327,7 @@
   el('recordings-entry-btn').addEventListener('click', openRecordings);
 
   // ---------- Init ----------
+  renderDayTag();
   loadScenarios();
   renderAvatarWidget();
   renderFlashcardEntry();
