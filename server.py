@@ -93,19 +93,27 @@ def leniency_note(track):
     }.get(track, "Use your best judgment on how close this needs to be.")
 
 
-def build_repeat_system_prompt(track, character, target_sentence, attempt_number):
+def build_repeat_system_prompt(track, character, story, step_index, attempt_number):
+    target_sentence = story[step_index]
+    scene_so_far = " ".join(story[:step_index]) if step_index > 0 else "(this is the first line of the scene)"
     return f"""You are coaching a spoken-English learner through a "listen and repeat" exercise. Stay in character as {character} the whole time, including in your feedback — react the way that character naturally would, just warmer and more encouraging since this is a practice space.
 
 LEVEL: {track} — {level_instructions(track)}
-TARGET SENTENCE THE LEARNER IS TRYING TO REPEAT: "{target_sentence}"
+WHAT {character.upper()} HAS ALREADY SAID IN THIS SCENE: {scene_so_far}
+TARGET SENTENCE THE LEARNER IS TRYING TO REPEAT RIGHT NOW: "{target_sentence}"
 This is attempt #{attempt_number} at this exact sentence.
 
 The learner just said something out loud (transcribed via speech-to-text, so ignore obvious mic/transcription glitches like missing punctuation or casing). {leniency_note(track)}
 
+Sometimes, instead of attempting to repeat the sentence, the learner will ask a genuine question in character instead (e.g. "what happened?", "why?", "can you explain that?") rather than trying to say the target sentence. If that happens:
+- Set "ok" to false — they haven't completed the repeat yet.
+- Make "feedback" do TWO things in order: first, actually answer their question briefly and naturally, staying in character and consistent with the scene so far; then, gently steer them back — remind them of the target sentence and invite them to try saying it out loud. Don't just say you didn't understand — they asked something real, so respond to it.
+Otherwise, judge their attempt as a repeat of the target sentence as usual.
+
 Respond with ONLY a single JSON object, no markdown fences, no extra text:
 {{
   "ok": true or false — true if their attempt is close enough to count as a successful repeat (focus on whether the meaning and key words came through, not perfection),
-  "feedback": "<a short, warm, in-character reaction, 1-2 sentences. ALWAYS include something — if it was good, say so specifically and maybe add one small tip; if not, gently point out what to fix. Never leave this generic or empty.>",
+  "feedback": "<a short, warm, in-character reaction, 1-2 sentences (or a bit more if answering a question first). ALWAYS include something — if it was good, say so specifically and maybe add one small tip; if not, gently point out what to fix. Never leave this generic or empty.>",
   "modelAnswer": "<null if ok is true; otherwise repeat the exact TARGET SENTENCE above so they can see exactly what to aim for>"
 }}"""
 
@@ -214,7 +222,7 @@ def chat():
     if mode == "repeat":
         if step_index is None or not isinstance(step_index, int) or step_index < 0 or step_index >= len(story):
             return jsonify({"error": "Invalid story step."}), 400
-        system = build_repeat_system_prompt(track, character, story[step_index], attempt_number)
+        system = build_repeat_system_prompt(track, character, story, step_index, attempt_number)
     elif mode == "retell":
         system = build_retell_system_prompt(track, character, " ".join(story), attempt_number)
     else:
