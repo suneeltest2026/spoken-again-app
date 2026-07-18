@@ -226,10 +226,42 @@
         <input id="advice-situation-input" type="text" placeholder="What are you facing today? — e.g. a meeting where I have some doubts" />
         <button id="advice-submit-btn" class="send-btn">💡 Get Advice</button>
       </div>
+      <button id="advice-photo-btn" class="photo-link advice-photo-btn" type="button">📷 Or share a photo/screenshot instead</button>
     </div>
     <div id="advice-status" class="mic-status"></div>
 
     <div id="scenario-list" class="card-list"></div>
+  </section>
+
+  <!-- SCREEN: Ask & Get Advice from a shared photo/screenshot -->
+  <section id="screen-advice-image" class="screen">
+    <header class="app-header chat-header">
+      <button class="back-btn" data-back="screen-scenarios">&larr;</button>
+      <div class="chat-header-text">
+        <h1>Ask & Get Advice</h1>
+        <p class="subtitle">Share a photo or screenshot to get started.</p>
+      </div>
+    </header>
+
+    <div id="advice-image-log" class="chat-log"></div>
+
+    <div id="advice-image-upload-row">
+      <label class="photo-link" for="advice-image-file-input">📷 Take or choose a photo</label>
+      <input id="advice-image-file-input" type="file" accept="image/*" class="hidden-file-input" />
+    </div>
+
+    <div id="advice-image-result-row" class="hidden">
+      <button id="advice-image-practice-btn" class="roleplay-btn" type="button">▶ Start Practice</button>
+    </div>
+
+    <div id="advice-image-compose" class="hidden">
+      <div class="input-bar">
+        <button id="advice-image-mic-btn" class="mic-btn" title="Tap to speak">🎙️</button>
+        <input id="advice-image-input" type="text" placeholder="Type your answer..." />
+        <button id="advice-image-send-btn" class="send-btn">Send</button>
+      </div>
+      <div id="advice-image-status" class="mic-status"></div>
+    </div>
   </section>
 
   <!-- SCREEN 3: conversation -->

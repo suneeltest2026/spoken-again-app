@@ -519,6 +519,147 @@
     if (e.key === 'Enter') submitAdviceRequest(el('advice-situation-input').value, el('advice-level-select').value);
   });
 
+  // ---------- Ask & Get Advice from a shared photo/screenshot ----------
+  // A short back-and-forth: the learner shares an image, the coach asks up
+  // to a couple of clarifying questions, then wraps up with the same
+  // {title, advice, phrases} shape as the text-only advice flow — so it
+  // plugs into addAdviceEntry()/openScenario() and the normal practice
+  // engine once the conversation is done. The server is stateless, so the
+  // client resends the whole conversation (including the image, only on
+  // its first turn) on every call.
+  let adviceImageHistory = [];
+  let pendingAdviceImageResult = null;
+
+  function addAdviceImageBubble(role, text) {
+    const bubble = document.createElement('div');
+    bubble.className = `bubble ${role === 'claude' ? 'claude' : 'user'}`;
+    bubble.textContent = text;
+    el('advice-image-log').appendChild(bubble);
+    el('advice-image-log').scrollTop = el('advice-image-log').scrollHeight;
+  }
+
+  function addAdviceImageThumbnail(dataUrl) {
+    const img = document.createElement('img');
+    img.className = 'bubble-image';
+    img.src = dataUrl;
+    img.alt = 'Your shared photo';
+    el('advice-image-log').appendChild(img);
+    el('advice-image-log').scrollTop = el('advice-image-log').scrollHeight;
+  }
+
+  function showAdviceImageThinking() {
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble claude thinking';
+    bubble.id = 'advice-image-thinking-bubble';
+    bubble.textContent = 'Thinking…';
+    el('advice-image-log').appendChild(bubble);
+    el('advice-image-log').scrollTop = el('advice-image-log').scrollHeight;
+  }
+
+  function hideAdviceImageThinking() {
+    const bubble = el('advice-image-thinking-bubble');
+    if (bubble) bubble.remove();
+  }
+
+  function openAdviceImageChat() {
+    adviceImageHistory = [];
+    pendingAdviceImageResult = null;
+    el('advice-image-log').innerHTML = '';
+    el('advice-image-upload-row').classList.remove('hidden');
+    el('advice-image-compose').classList.add('hidden');
+    el('advice-image-result-row').classList.add('hidden');
+    el('advice-image-status').textContent = '';
+    el('advice-image-file-input').value = '';
+    showScreen('screen-advice-image');
+  }
+
+  el('advice-photo-btn').addEventListener('click', openAdviceImageChat);
+
+  async function sendAdviceImageTurn(text, imageBase64) {
+    const turn = { role: 'user', text };
+    if (imageBase64) turn.image = imageBase64;
+    adviceImageHistory.push(turn);
+    if (text) addAdviceImageBubble('user', text);
+    el('advice-image-compose').classList.add('hidden');
+    el('advice-image-upload-row').classList.add('hidden');
+    showAdviceImageThinking();
+    try {
+      const res = await fetch('/api/advice-image-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level: el('advice-level-select').value, history: adviceImageHistory }),
+      });
+      const data = await res.json();
+      hideAdviceImageThinking();
+      if (data.error) {
+        el('advice-image-status').textContent = '⚠️ ' + data.error;
+        el('advice-image-compose').classList.remove('hidden');
+        return;
+      }
+      adviceImageHistory.push({ role: 'assistant', text: data.message });
+      addAdviceImageBubble('claude', data.message);
+      if (data.done) {
+        pendingAdviceImageResult = { title: data.title, advice: data.advice, phrases: data.phrases, level: data.level };
+        el('advice-image-result-row').classList.remove('hidden');
+      } else {
+        el('advice-image-compose').classList.remove('hidden');
+      }
+    } catch (e) {
+      hideAdviceImageThinking();
+      el('advice-image-status').textContent = '⚠️ Could not reach the server: ' + e.message;
+      el('advice-image-compose').classList.remove('hidden');
+    }
+  }
+
+  el('advice-image-file-input').addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        // Proportional resize (no square crop — this is a document/screenshot,
+        // not a profile photo) so the payload stays a reasonable size.
+        const maxDim = 1024;
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        addAdviceImageThumbnail(dataUrl);
+        sendAdviceImageTurn('', dataUrl.split(',')[1]);
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  });
+
+  el('advice-image-send-btn').addEventListener('click', () => {
+    const text = el('advice-image-input').value.trim();
+    if (!text) return;
+    el('advice-image-input').value = '';
+    sendAdviceImageTurn(text);
+  });
+  el('advice-image-input').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const text = el('advice-image-input').value.trim();
+    if (!text) return;
+    el('advice-image-input').value = '';
+    sendAdviceImageTurn(text);
+  });
+
+  el('advice-image-practice-btn').addEventListener('click', () => {
+    if (!pendingAdviceImageResult) return;
+    const { title, advice, phrases, level } = pendingAdviceImageResult;
+    const entry = addAdviceEntry(title, advice, phrases, level);
+    openScenario(entry);
+  });
+
   // ---------- Entering a scenario ----------
   function openScenario(scenario) {
     state.scenario = scenario;
@@ -918,7 +1059,7 @@
   let recognizing = false;
   let recognitionSupported = false;
   let startWatchdog = null;
-  let micTarget = 'chat'; // 'chat' | 'research' | 'custom' | 'onboarding' | 'advice'
+  let micTarget = 'chat'; // 'chat' | 'research' | 'custom' | 'onboarding' | 'advice' | 'advice-image'
 
   // Voice recording — tapping the record button (⏺, left of the mic) starts
   // listening immediately AND captures the audio for that one answer, which
@@ -936,6 +1077,7 @@
     if (micTarget === 'custom') return el('custom-mic-btn');
     if (micTarget === 'onboarding') return el('onboarding-mic-btn');
     if (micTarget === 'advice') return el('advice-mic-btn');
+    if (micTarget === 'advice-image') return el('advice-image-mic-btn');
     if (micTarget === 'chat' && recordingViaButton) return el('record-toggle-btn');
     return el('mic-btn');
   }
@@ -945,6 +1087,7 @@
     if (micTarget === 'custom') return el('custom-status');
     if (micTarget === 'onboarding') return el('onboarding-status');
     if (micTarget === 'advice') return el('advice-status');
+    if (micTarget === 'advice-image') return el('advice-image-status');
     return el('mic-status');
   }
 
@@ -973,6 +1116,9 @@
         } else if (micTarget === 'advice') {
           el('advice-situation-input').value = transcript;
           submitAdviceRequest(transcript, el('advice-level-select').value);
+        } else if (micTarget === 'advice-image') {
+          el('advice-image-input').value = '';
+          sendAdviceImageTurn(transcript);
         } else if (micTarget === 'onboarding') {
           el('onboarding-input').value = transcript;
           submitOnboardingAnswer(transcript);
@@ -1036,6 +1182,7 @@
     el('custom-mic-btn').addEventListener('click', () => { micTarget = 'custom'; startRecognitionIfAvailable(); });
     el('onboarding-mic-btn').addEventListener('click', () => { micTarget = 'onboarding'; startRecognitionIfAvailable(); });
     el('advice-mic-btn').addEventListener('click', () => { micTarget = 'advice'; startRecognitionIfAvailable(); });
+    el('advice-image-mic-btn').addEventListener('click', () => { micTarget = 'advice-image'; startRecognitionIfAvailable(); });
   } else {
     el('record-toggle-btn').style.display = 'none';
     el('mic-btn').style.display = 'none';
@@ -1043,11 +1190,13 @@
     el('custom-mic-btn').style.display = 'none';
     el('onboarding-mic-btn').style.display = 'none';
     el('advice-mic-btn').style.display = 'none';
+    el('advice-image-mic-btn').style.display = 'none';
     el('mic-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type your answer below.';
     el('research-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type instead.';
     el('custom-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type instead.';
     el('onboarding-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type instead.';
     el('advice-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type instead.';
+    el('advice-image-status').textContent = 'Voice input isn\'t supported in this browser — try Chrome/Android, or just type instead.';
   }
 
   const mediaRecorderSupported = typeof MediaRecorder !== 'undefined';

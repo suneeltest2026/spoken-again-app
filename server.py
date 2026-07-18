@@ -205,6 +205,34 @@ Respond with ONLY a single JSON object, no markdown fences, no extra text:
 }}"""
 
 
+def build_advice_image_prompt(level):
+    return f"""You are a supportive English-speaking coach helping a learner figure out how to respond to something in English, based on an image they've shared — a screenshot of an email or chat, a photo of a document, a meeting agenda, a sign, a form, anything.
+
+LEVEL: {level} — {level_instructions(level)}
+
+Look at the image and understand its context. Have a short, natural back-and-forth with the learner — ask AT MOST one or two clarifying questions total across the whole conversation to understand what kind of help they actually need (e.g. "reply to this email", "prepare talking points for a meeting about this", "understand what this form is asking"). Don't over-ask — once you have enough to help meaningfully, wrap up with real advice.
+
+When you wrap up, give practical advice for their specific situation and 4 to 6 natural, ready-to-use English phrases or sentences they could actually say or write, matching the LEVEL above.
+
+Respond with ONLY a single JSON object on EVERY turn, no markdown fences, no extra text:
+{{
+  "done": true or false — false while you still need to ask a clarifying question, true once you're giving final advice,
+  "message": "<if done is false: your next clarifying question, warm and brief. If done is true: a short warm wrap-up sentence.>",
+  "title": "<null if done is false; otherwise a short 3-6 word title for this situation>",
+  "advice": "<null if done is false; otherwise 2 to 4 sentences of practical advice>",
+  "phrases": "<null if done is false; otherwise an array of 4 to 6 natural, ready-to-use phrases>"
+}}"""
+
+
+def _extract_json_object(raw, fallback):
+    try:
+        start = raw.index("{")
+        end = raw.rindex("}")
+        return json.loads(raw[start:end + 1])
+    except (ValueError, json.JSONDecodeError):
+        return fallback(raw)
+
+
 def call_claude(system, user_text, max_tokens=400):
     resp = requests.post(
         ANTHROPIC_URL,
@@ -224,12 +252,33 @@ def call_claude(system, user_text, max_tokens=400):
     resp.raise_for_status()
     data = resp.json()
     raw = "".join(block.get("text", "") for block in data.get("content", []))
-    try:
-        start = raw.index("{")
-        end = raw.rindex("}")
-        return json.loads(raw[start:end + 1])
-    except (ValueError, json.JSONDecodeError):
-        return {"ok": False, "feedback": raw.strip() or "Let's try that again.", "modelAnswer": None}
+    return _extract_json_object(raw, lambda r: {"ok": False, "feedback": r.strip() or "Let's try that again.", "modelAnswer": None})
+
+
+def call_claude_conversation(system, messages, max_tokens=600):
+    """Like call_claude, but takes a full multi-turn `messages` array (used
+    for the image-based advice chat, where earlier turns — including the
+    image — need to stay in context on every call, since the server itself
+    is stateless between requests)."""
+    resp = requests.post(
+        ANTHROPIC_URL,
+        headers={
+            "x-api-key": API_KEY,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+        json={
+            "model": MODEL,
+            "max_tokens": max_tokens,
+            "system": system,
+            "messages": messages,
+        },
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    raw = "".join(block.get("text", "") for block in data.get("content", []))
+    return _extract_json_object(raw, lambda r: {"done": False, "message": r.strip() or "Could you tell me a bit more?"})
 
 
 @app.route("/api/chat", methods=["POST"])
@@ -392,6 +441,74 @@ def generate_advice():
             "phrases": phrases,
             "level": level,
         })
+    except requests.exceptions.HTTPError as e:
+        detail = e.response.text if e.response is not None else str(e)
+        return jsonify({"error": f"Claude request failed: {detail}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Claude request failed: {e}"}), 500
+
+
+MAX_IMAGE_B64_CHARS = 6_000_000  # ~4.5MB decoded — generous ceiling for a resized JPEG screenshot/photo
+
+
+@app.route("/api/advice-image-chat", methods=["POST"])
+def advice_image_chat():
+    if not API_KEY:
+        return jsonify({
+            "error": "No ANTHROPIC_API_KEY configured on the server. Add one to your .env file and restart the server."
+        }), 500
+
+    body = request.get_json(force=True) or {}
+    level = body.get("level") or "intermediate"
+    if level not in ("beginner", "intermediate", "advanced", "business"):
+        level = "intermediate"
+    history = body.get("history")
+    if not isinstance(history, list) or not history:
+        return jsonify({"error": "Missing conversation history."}), 400
+    if len(history) > 12:
+        return jsonify({"error": "This conversation has gone on a while — try starting a fresh one."}), 400
+
+    # The client resends the whole conversation on every turn (this server
+    # keeps no session state), so this just translates that into Anthropic's
+    # multi-turn message format. Only the first user turn is expected to
+    # carry an image, but any turn is allowed to for flexibility.
+    messages = []
+    for turn in history:
+        if not isinstance(turn, dict):
+            return jsonify({"error": "Invalid conversation history."}), 400
+        role = turn.get("role")
+        text = (turn.get("text") or "").strip()
+        if role == "user":
+            content = []
+            image_b64 = turn.get("image")
+            if image_b64:
+                if not isinstance(image_b64, str) or len(image_b64) > MAX_IMAGE_B64_CHARS:
+                    return jsonify({"error": "That image is too large — try a smaller photo."}), 400
+                content.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": image_b64}})
+            content.append({"type": "text", "text": text or "(no message)"})
+            messages.append({"role": "user", "content": content})
+        elif role == "assistant":
+            messages.append({"role": "assistant", "content": text or "(no response)"})
+        else:
+            return jsonify({"error": "Invalid conversation history."}), 400
+
+    system = build_advice_image_prompt(level)
+    try:
+        parsed = call_claude_conversation(system, messages, max_tokens=700)
+        message = parsed.get("message")
+        if not isinstance(message, str) or not message.strip():
+            return jsonify({"error": "Couldn't process that — please try again."}), 500
+
+        done = bool(parsed.get("done"))
+        phrases = parsed.get("phrases")
+        has_full_result = isinstance(phrases, list) and phrases and parsed.get("advice") and parsed.get("title")
+        response = {"done": done and has_full_result, "message": message}
+        if response["done"]:
+            response["title"] = parsed["title"]
+            response["advice"] = parsed["advice"]
+            response["phrases"] = phrases
+            response["level"] = level
+        return jsonify(response)
     except requests.exceptions.HTTPError as e:
         detail = e.response.text if e.response is not None else str(e)
         return jsonify({"error": f"Claude request failed: {detail}"}), 500
