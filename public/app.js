@@ -7,6 +7,7 @@
     stepIndex: 0,        // which story sentence we're on
     phase: 'story',      // 'story' | 'retell' | 'done'
     attemptNumber: 1,    // attempt count for the current step/retell
+    historySessionId: null, // identifies this attempt in the permanent History log (see logHistorySession)
   };
 
   const el = (id) => document.getElementById(id);
@@ -130,8 +131,29 @@
       stepIndex: state.stepIndex,
       phase: state.phase,
       attemptNumber: state.attemptNumber,
+      historySessionId: state.historySessionId,
       updatedAt: Date.now(), // powers the History screen's timeline
     }));
+    // Research/Custom/Advice already have their own permanent record (the
+    // dynamic index — see getDynamicIndex/saveDynamicIndex) — only fixed-track
+    // story scenarios need the separate permanent History log, otherwise
+    // they'd show up twice in History (once per system).
+    const track = findTrack(state.track);
+    if (track && !track.dynamic) {
+      logHistorySession({
+        sessionId: state.historySessionId,
+        track: state.track,
+        trackLabel: track.label,
+        scenarioId: state.scenario.id,
+        scenarioTitle: state.scenario.title,
+        character: state.scenario.character,
+        level: state.scenario.level,
+        history: state.history,
+        phase: state.phase,
+        attemptNumber: state.attemptNumber,
+        updatedAt: Date.now(),
+      });
+    }
   }
 
   function loadProgress(track, scenarioId) {
@@ -143,8 +165,56 @@
     }
   }
 
+  // Clears only the "resume where you left off" pointer for this scenario —
+  // it never touches the permanent History log (see logHistorySession below),
+  // so hitting Reset or Practice Again can never erase past practice. It just
+  // means the NEXT attempt starts a fresh session instead of continuing this one.
   function clearProgress(track, scenarioId) {
     localStorage.removeItem(storageKey(track, scenarioId));
+  }
+
+  // ---------- Permanent History log (never deleted, survives Reset/Practice Again) ----------
+  // Every fixed-track scenario attempt gets a unique sessionId (assigned in
+  // startFresh()/openScenario()) and is appended here the first time it's
+  // saved, then updated in place as that same attempt progresses. Starting a
+  // NEW attempt (via Reset or Practice Again) gets its own new sessionId, so
+  // the old attempt's record — including exactly what the learner said —
+  // stays in this log untouched, forever.
+  const HISTORY_LOG_KEY = 'speakAgain:v2:historyLog';
+
+  function loadHistoryLog() {
+    try {
+      const raw = localStorage.getItem(HISTORY_LOG_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveHistoryLog(log) {
+    localStorage.setItem(HISTORY_LOG_KEY, JSON.stringify(log));
+  }
+
+  function logHistorySession(session) {
+    const log = loadHistoryLog();
+    const idx = log.findIndex(s => s.sessionId === session.sessionId);
+    if (idx >= 0) {
+      log[idx] = Object.assign({}, log[idx], session);
+    } else {
+      log.push(Object.assign({ startedAt: Date.now() }, session));
+    }
+    saveHistoryLog(log);
+  }
+
+  // The last thing the learner actually said/typed in a session — this is
+  // the "same input the user gave" surfaced on History cards, regardless of
+  // whether they used voice or the text box (both end up as plain text here).
+  function lastUserLine(history) {
+    if (!Array.isArray(history)) return null;
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (history[i].role === 'user') return history[i].text;
+    }
+    return null;
   }
 
   // ---------- Dynamic-track history (Research lookups, generated Custom scenarios) ----------
@@ -197,7 +267,7 @@
     return entry;
   }
 
-  function addCustomScenarioEntry(title, character, story, level) {
+  function addCustomScenarioEntry(title, character, story, level, userInput) {
     const index = getDynamicIndex('custom');
     const entry = {
       id: `${slugify(title)}-${Date.now()}`,
@@ -205,6 +275,7 @@
       character,
       story,
       level,
+      userInput: userInput || null, // what the learner actually typed/said to generate this
       createdAt: Date.now(),
     };
     index.unshift(entry); // newest first
@@ -212,7 +283,7 @@
     return entry;
   }
 
-  function addAdviceEntry(title, advice, phrases, level) {
+  function addAdviceEntry(title, advice, phrases, level, userInput) {
     const index = getDynamicIndex('advice');
     const entry = {
       id: `${slugify(title)}-${Date.now()}`,
@@ -221,6 +292,7 @@
       character: 'a supportive speaking coach', // these are the learner's own lines, not a roleplay partner's
       story: phrases,
       level,
+      userInput: userInput || null, // what the learner actually typed/said to describe their situation
       createdAt: Date.now(),
     };
     index.unshift(entry); // newest first
@@ -503,7 +575,7 @@
         el('custom-status').textContent = '⚠️ ' + data.error;
         return;
       }
-      const entry = addCustomScenarioEntry(data.title, data.character, data.story, data.level);
+      const entry = addCustomScenarioEntry(data.title, data.character, data.story, data.level, topic);
       el('custom-topic-input').value = '';
       el('custom-status').textContent = '';
       openScenario(entry);
@@ -536,7 +608,7 @@
         el('advice-status').textContent = '⚠️ ' + data.error;
         return;
       }
-      const entry = addAdviceEntry(data.title, data.advice, data.phrases, data.level);
+      const entry = addAdviceEntry(data.title, data.advice, data.phrases, data.level, situation);
       el('advice-situation-input').value = '';
       el('advice-status').textContent = '';
       openScenario(entry);
@@ -690,7 +762,11 @@
   el('advice-image-practice-btn').addEventListener('click', () => {
     if (!pendingAdviceImageResult) return;
     const { title, advice, phrases, level } = pendingAdviceImageResult;
-    const entry = addAdviceEntry(title, advice, phrases, level);
+    const userInput = adviceImageHistory
+      .filter(t => t.role === 'user' && t.text)
+      .map(t => t.text)
+      .join(' / ') || '(shared a photo)';
+    const entry = addAdviceEntry(title, advice, phrases, level, userInput);
     openScenario(entry);
   });
 
@@ -719,6 +795,9 @@
       state.stepIndex = saved.stepIndex || 0;
       state.phase = saved.phase || 'story';
       state.attemptNumber = saved.attemptNumber || 1;
+      // Legacy saves (before the permanent History log existed) won't have a
+      // sessionId yet — mint one now so this attempt starts being tracked.
+      state.historySessionId = saved.historySessionId || `${state.track}:${scenario.id}:${saved.updatedAt || Date.now()}`;
       state.history.forEach(m => addBubble(m.role, m.text, false));
       addSystemNote('Continuing where you left off.');
       updateInstructionAndProgress();
@@ -733,6 +812,7 @@
     state.stepIndex = 0;
     state.phase = 'story';
     state.attemptNumber = 1;
+    state.historySessionId = `${state.track}:${state.scenario.id}:${Date.now()}`;
     const firstLine = state.scenario.story[0];
     pushClaudeBubble(firstLine);
     saveProgress();
@@ -1194,6 +1274,7 @@
               sentence: state.phase === 'retell'
                 ? state.scenario.story.join(' ')
                 : state.scenario.story[state.stepIndex],
+              userText: transcript, // what the learner actually said, not the target line
             };
           }
           el('text-input').value = transcript;
@@ -1495,13 +1576,16 @@
     });
 
     getDynamicIndex('custom').forEach(entry => {
+      const yourInput = entry.userInput
+        ? `<div class="flashcard-your-input"><strong>You asked for:</strong> “${escapeHtml(entry.userInput)}”</div>`
+        : '';
       cards.push({
         key: `custom:${entry.id}`,
         tag: 'Custom Scenario',
         color: trackStyle('custom').color,
         front: entry.title,
         frontSub: `with ${entry.character}`,
-        backHtml: `<p class="flashcard-story-text">${escapeHtml(entry.story.join(' '))}</p>`,
+        backHtml: `<p class="flashcard-story-text">${escapeHtml(entry.story.join(' '))}</p>${yourInput}`,
       });
     });
 
@@ -1509,30 +1593,48 @@
       const phrases = Array.isArray(entry.story) && entry.story.length
         ? `<ul class="flashcard-examples">${entry.story.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>`
         : '';
+      const yourInput = entry.userInput
+        ? `<div class="flashcard-your-input"><strong>Your situation:</strong> “${escapeHtml(entry.userInput)}”</div>`
+        : '';
       cards.push({
         key: `advice:${entry.id}`,
         tag: 'Ask & Get Advice',
         color: trackStyle('advice').color,
         front: entry.title,
         frontSub: '',
-        backHtml: `<div class="flashcard-meaning">${escapeHtml(entry.advice || '')}</div>${phrases}`,
+        backHtml: `${yourInput}<div class="flashcard-meaning">${escapeHtml(entry.advice || '')}</div>${phrases}`,
       });
+    });
+
+    // One card per scenario, sourced from the most recently completed attempt
+    // in the permanent History log — so the deck (and the "what you said"
+    // quote on the back) survives Reset/Practice Again just like History does,
+    // instead of depending on the single overwritable "resume" record.
+    const doneSessions = new Map(); // "track:scenarioId" -> latest done session
+    loadHistoryLog().forEach(session => {
+      if (session.phase !== 'done') return;
+      const dkey = `${session.track}:${session.scenarioId}`;
+      const existing = doneSessions.get(dkey);
+      if (!existing || (session.updatedAt || 0) > (existing.updatedAt || 0)) doneSessions.set(dkey, session);
     });
 
     (state.tracks || []).forEach(track => {
       if (track.dynamic) return;
       track.scenarios.forEach(sc => {
-        const saved = loadProgress(track.key, sc.id);
-        if (saved && saved.phase === 'done') {
-          cards.push({
-            key: `story:${track.key}:${sc.id}`,
-            tag: track.label,
-            color: trackStyle(track.key).color,
-            front: sc.title,
-            frontSub: `with ${sc.character}`,
-            backHtml: `<p class="flashcard-story-text">${escapeHtml(sc.story.join(' '))}</p>`,
-          });
-        }
+        const session = doneSessions.get(`${track.key}:${sc.id}`);
+        if (!session) return;
+        const yourLine = lastUserLine(session.history);
+        const yourInput = yourLine
+          ? `<div class="flashcard-your-input"><strong>What you said:</strong> “${escapeHtml(yourLine)}”</div>`
+          : '';
+        cards.push({
+          key: `story:${track.key}:${sc.id}`,
+          tag: track.label,
+          color: trackStyle(track.key).color,
+          front: sc.title,
+          frontSub: `with ${sc.character}`,
+          backHtml: `<p class="flashcard-story-text">${escapeHtml(sc.story.join(' '))}</p>${yourInput}`,
+        });
       });
     });
 
@@ -1713,6 +1815,7 @@
         trackLabel: ctx.trackLabel,
         scenarioTitle: ctx.scenarioTitle,
         sentence: ctx.sentence,
+        userText: ctx.userText || null, // what the learner actually said, when known
         phase: ctx.phase,
         audioBlob: blob,
         savedAt: Date.now(),
@@ -1797,7 +1900,7 @@
       card.className = 'card';
       card.innerHTML = `
         <h3>${escapeHtml(rec.scenarioTitle || rec.trackLabel)}</h3>
-        <p class="card-preview">${escapeHtml(rec.sentence || '')}</p>
+        <p class="card-preview">${rec.userText ? '“' + escapeHtml(rec.userText) + '”' : escapeHtml(rec.sentence || '')}</p>
         <p class="card-status" style="color:${style.color} !important;">${escapeHtml(rec.trackLabel)} · ${escapeHtml(formatSavedAt(rec.savedAt))}</p>
         <audio controls class="recording-audio" src="${url}"></audio>
       `;
@@ -1831,6 +1934,7 @@
         title: entry.term,
         subLabel: 'Research',
         statusLabel: 'Looked up',
+        userInput: entry.term,
         onOpen: () => { state.track = 'research'; openScenario(entry); },
       });
     });
@@ -1843,6 +1947,7 @@
         title: entry.title,
         subLabel: 'Custom Scenario',
         statusLabel: 'Generated',
+        userInput: entry.userInput,
         onOpen: () => { state.track = 'custom'; openScenario(entry); },
       });
     });
@@ -1855,24 +1960,24 @@
         title: entry.title,
         subLabel: 'Ask & Get Advice',
         statusLabel: 'Generated',
+        userInput: entry.userInput,
         onOpen: () => { state.track = 'advice'; openScenario(entry); },
       });
     });
 
-    (state.tracks || []).forEach(track => {
-      if (track.dynamic) return;
-      track.scenarios.forEach(sc => {
-        const saved = loadProgress(track.key, sc.id);
-        if (!saved) return;
-        events.push({
-          timestamp: saved.updatedAt || null,
-          icon: trackStyle(track.key).icon,
-          color: trackStyle(track.key).color,
-          title: sc.title,
-          subLabel: track.label,
-          statusLabel: saved.phase === 'done' ? 'Completed' : 'In progress',
-          onOpen: () => { state.track = track.key; openScenario(sc); },
-        });
+    // Every fixed-track practice attempt ever logged — not just the current
+    // resumable one, so a Reset/Practice Again never makes an old attempt
+    // vanish from here (see logHistorySession).
+    loadHistoryLog().forEach(session => {
+      events.push({
+        timestamp: session.updatedAt || session.startedAt || null,
+        icon: trackStyle(session.track).icon,
+        color: trackStyle(session.track).color,
+        title: session.scenarioTitle,
+        subLabel: session.trackLabel,
+        statusLabel: session.phase === 'done' ? 'Completed' : 'In progress',
+        userInput: lastUserLine(session.history),
+        onOpen: () => openHistorySessionDetail(session),
       });
     });
 
@@ -1909,6 +2014,7 @@
         title: rec.scenarioTitle || rec.trackLabel,
         subLabel: `${rec.trackLabel} · recording`,
         statusLabel: 'Recorded',
+        userInput: rec.userText || rec.sentence || null,
         onOpen: openRecordings,
       });
     });
@@ -1936,10 +2042,11 @@
         : '';
       const card = document.createElement('div');
       card.className = 'card';
+      const previewText = ev.userInput ? `“${escapeHtml(ev.userInput)}”` : escapeHtml(ev.subLabel);
       card.innerHTML = `
         <h3>${ev.icon} ${escapeHtml(ev.title)}</h3>
-        <p class="card-preview">${escapeHtml(ev.subLabel)}</p>
-        <p class="card-status" style="color:${ev.color} !important;">${escapeHtml(ev.statusLabel)}${timeStr ? ' · ' + timeStr : ''}</p>
+        <p class="card-preview">${previewText}</p>
+        <p class="card-status" style="color:${ev.color} !important;">${escapeHtml(ev.subLabel)} · ${escapeHtml(ev.statusLabel)}${timeStr ? ' · ' + timeStr : ''}</p>
       `;
       if (ev.onOpen) card.addEventListener('click', ev.onOpen);
       list.appendChild(card);
@@ -1949,6 +2056,45 @@
   }
 
   el('history-entry-btn').addEventListener('click', openHistory);
+
+  // ---------- History detail (read-only transcript of one past attempt) ----------
+  // Fixed-track scenarios can have multiple logged attempts (Reset/Practice
+  // Again each start a new one, see logHistorySession), so tapping one in the
+  // list shows exactly what was said in THAT attempt, rather than silently
+  // resuming whichever attempt happens to be the current one.
+  let currentHistoryDetailSession = null;
+
+  function openHistorySessionDetail(session) {
+    currentHistoryDetailSession = session;
+    el('history-detail-title').textContent = session.scenarioTitle;
+    const statusLabel = session.phase === 'done' ? 'Completed' : 'In progress';
+    const when = session.updatedAt || session.startedAt;
+    el('history-detail-sub').textContent = `${session.trackLabel} · ${statusLabel}` +
+      (when ? ' · ' + formatSavedAt(when) : '');
+
+    const log = el('history-detail-log');
+    log.innerHTML = '';
+    (session.history || []).forEach(m => {
+      const bubble = document.createElement('div');
+      bubble.className = `bubble ${m.role === 'claude' ? 'claude' : 'user'}`;
+      bubble.textContent = m.text;
+      log.appendChild(bubble);
+    });
+
+    showScreen('screen-history-detail');
+  }
+
+  el('history-detail-practice-btn').addEventListener('click', () => {
+    if (!currentHistoryDetailSession) return;
+    const track = findTrack(currentHistoryDetailSession.track);
+    const sc = track && track.scenarios.find(s => s.id === currentHistoryDetailSession.scenarioId);
+    if (!sc) return;
+    state.track = currentHistoryDetailSession.track;
+    // Always a fresh attempt (its own new sessionId) — this past attempt's
+    // record stays exactly as it is in the History log either way.
+    clearProgress(currentHistoryDetailSession.track, sc.id);
+    openScenario(sc);
+  });
 
   // ---------- Init ----------
   startOnboardingIfNeeded(); // first, so screen-tracks never flashes before it

@@ -425,6 +425,16 @@ html, body {
 .flashcard-examples { text-align: left; padding-left: 18px; margin: 0; color: var(--text-dim); font-size: 0.9rem; line-height: 1.5; }
 .flashcard-examples li { margin-bottom: 6px; }
 .flashcard-story-text { font-size: 0.98rem; line-height: 1.6; text-align: left; }
+.flashcard-your-input {
+  text-align: left;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.flashcard-your-input strong { color: var(--text); }
 
 .flashcard-controls {
   display: flex;
