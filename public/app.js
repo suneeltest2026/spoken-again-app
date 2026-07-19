@@ -206,6 +206,23 @@
     saveHistoryLog(log);
   }
 
+  // Manual delete, unlike Reset/Practice Again — those never erase anything
+  // automatically; this is the explicit "actually get rid of it" action.
+  function deleteHistorySession(sessionId) {
+    const log = loadHistoryLog();
+    const session = log.find(s => s.sessionId === sessionId);
+    saveHistoryLog(log.filter(s => s.sessionId !== sessionId));
+    // If this was still the "resume where you left off" pointer for its
+    // scenario, clear that too — otherwise the next save would silently
+    // recreate the very session that was just deleted.
+    if (session) {
+      const saved = loadProgress(session.track, session.scenarioId);
+      if (saved && saved.historySessionId === sessionId) {
+        clearProgress(session.track, session.scenarioId);
+      }
+    }
+  }
+
   // The last thing the learner actually said/typed in a session — this is
   // the "same input the user gave" surfaced on History cards, regardless of
   // whether they used voice or the text box (both end up as plain text here).
@@ -236,6 +253,12 @@
 
   function saveDynamicIndex(trackKey, list) {
     localStorage.setItem(dynamicIndexKey(trackKey), JSON.stringify(list));
+  }
+
+  // Manual delete, unlike Reset/Practice Again — those never erase anything
+  // automatically; this is the explicit "actually get rid of it" action.
+  function deleteDynamicEntry(trackKey, id) {
+    saveDynamicIndex(trackKey, getDynamicIndex(trackKey).filter(e => e.id !== id));
   }
 
   function slugify(term) {
@@ -1923,6 +1946,20 @@
     }
   }
 
+  async function deleteRecording(key) {
+    try {
+      const db = await openRecordingsDB();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(RECORDINGS_STORE, 'readwrite');
+        tx.objectStore(RECORDINGS_STORE).delete(key);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch (e) {
+      // best-effort
+    }
+  }
+
   function formatSavedAt(ts) {
     const d = new Date(ts);
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
@@ -2002,6 +2039,7 @@
         statusLabel: 'Looked up',
         userInput: entry.term,
         onOpen: () => { state.track = 'research'; openScenario(entry); },
+        onDelete: () => deleteDynamicEntry('research', entry.id),
       });
     });
 
@@ -2015,6 +2053,7 @@
         statusLabel: 'Generated',
         userInput: entry.userInput,
         onOpen: () => { state.track = 'custom'; openScenario(entry); },
+        onDelete: () => deleteDynamicEntry('custom', entry.id),
       });
     });
 
@@ -2028,12 +2067,14 @@
         statusLabel: 'Generated',
         userInput: entry.userInput,
         onOpen: () => { state.track = 'advice'; openScenario(entry); },
+        onDelete: () => deleteDynamicEntry('advice', entry.id),
       });
     });
 
     // Every fixed-track practice attempt ever logged — not just the current
     // resumable one, so a Reset/Practice Again never makes an old attempt
-    // vanish from here (see logHistorySession).
+    // vanish from here (see logHistorySession). Deleting is a separate,
+    // explicit action — see deleteHistorySession.
     loadHistoryLog().forEach(session => {
       events.push({
         timestamp: session.updatedAt || session.startedAt || null,
@@ -2044,6 +2085,7 @@
         statusLabel: session.phase === 'done' ? 'Completed' : 'In progress',
         userInput: lastUserLine(session.history),
         onOpen: () => openHistorySessionDetail(session),
+        onDelete: () => deleteHistorySession(session.sessionId),
       });
     });
 
@@ -2082,6 +2124,7 @@
         statusLabel: 'Recorded',
         userInput: rec.userText || rec.sentence || null,
         onOpen: openRecordings,
+        onDelete: () => deleteRecording(rec.key),
       });
     });
     events.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -2107,14 +2150,24 @@
         ? new Date(ev.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
         : '';
       const card = document.createElement('div');
-      card.className = 'card';
+      card.className = 'card history-card';
       const previewText = ev.userInput ? `“${escapeHtml(ev.userInput)}”` : escapeHtml(ev.subLabel);
       card.innerHTML = `
+        <button class="history-delete-btn" type="button" title="Delete from History">✕</button>
         <h3>${ev.icon} ${escapeHtml(ev.title)}</h3>
         <p class="card-preview">${previewText}</p>
         <p class="card-status" style="color:${ev.color} !important;">${escapeHtml(ev.subLabel)} · ${escapeHtml(ev.statusLabel)}${timeStr ? ' · ' + timeStr : ''}</p>
       `;
       if (ev.onOpen) card.addEventListener('click', ev.onOpen);
+      if (ev.onDelete) {
+        card.querySelector('.history-delete-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!confirm(`Delete "${ev.title}" from History? This can't be undone.`)) return;
+          ev.onDelete();
+          openHistory();
+          renderHistoryEntry();
+        });
+      }
       list.appendChild(card);
     });
 
@@ -2174,6 +2227,15 @@
     // record stays exactly as it is in the History log either way.
     clearProgress(currentHistoryDetailSession.track, sc.id);
     openScenario(sc);
+  });
+
+  el('history-detail-delete-btn').addEventListener('click', () => {
+    if (!currentHistoryDetailSession) return;
+    if (!confirm(`Delete "${currentHistoryDetailSession.scenarioTitle}" from History? This can't be undone.`)) return;
+    deleteHistorySession(currentHistoryDetailSession.sessionId);
+    currentHistoryDetailSession = null;
+    renderHistoryEntry();
+    openHistory();
   });
 
   // ---------- Init ----------

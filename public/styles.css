@@ -368,6 +368,28 @@ html, body {
 .history-day-label { margin-top: 18px; }
 .history-day-label:first-child { margin-top: 0; }
 
+.history-card { position: relative; padding-right: 40px; }
+.history-delete-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--panel-light);
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.history-delete-btn:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
+.history-detail-delete-btn { color: var(--danger) !important; border-color: var(--danger) !important; }
+
 .flashcard-stage {
   display: flex;
   flex-direction: column;
