@@ -111,6 +111,7 @@
           renderMasthead();
           renderFlashcardEntry();
           renderRecordingsEntry();
+          renderHistoryEntry();
         }
         showScreen(target);
       }
@@ -129,6 +130,7 @@
       stepIndex: state.stepIndex,
       phase: state.phase,
       attemptNumber: state.attemptNumber,
+      updatedAt: Date.now(), // powers the History screen's timeline
     }));
   }
 
@@ -177,6 +179,7 @@
     if (existing) {
       existing.meaning = meaning;
       existing.story = sentences;
+      existing.updatedAt = Date.now();
       saveDynamicIndex('research', index);
       return existing;
     }
@@ -187,6 +190,7 @@
       character: 'a friendly vocabulary coach',
       meaning,
       story: sentences,
+      updatedAt: Date.now(),
     };
     index.unshift(entry); // newest first
     saveDynamicIndex('research', index);
@@ -201,6 +205,7 @@
       character,
       story,
       level,
+      createdAt: Date.now(),
     };
     index.unshift(entry); // newest first
     saveDynamicIndex('custom', index);
@@ -216,10 +221,19 @@
       character: 'a supportive speaking coach', // these are the learner's own lines, not a roleplay partner's
       story: phrases,
       level,
+      createdAt: Date.now(),
     };
     index.unshift(entry); // newest first
     saveDynamicIndex('advice', index);
     return entry;
+  }
+
+  // Custom/Advice entry ids embed a Date.now() timestamp
+  // (`${slugify(title)}-<timestamp>`) even for entries saved before
+  // createdAt existed — used as a fallback so History can date those too.
+  function timestampFromId(id) {
+    const match = /-(\d{10,})$/.exec(id || '');
+    return match ? Number(match[1]) : null;
   }
 
   // ---------- Track visual identity (icon + accent color per track) ----------
@@ -308,6 +322,7 @@
     renderMasthead();
     renderFlashcardEntry();
     renderRecordingsEntry();
+    renderHistoryEntry();
   }
 
   function openCategoryHub(category) {
@@ -1709,6 +1724,7 @@
         tx.onerror = () => reject(tx.error);
       });
       renderRecordingsEntry();
+      renderHistoryEntry();
       if (el('screen-recordings').classList.contains('active')) renderRecordingsList();
       const statusEl = el('mic-status');
       statusEl.textContent = '🎙️ Saved to My Recordings';
@@ -1796,6 +1812,144 @@
 
   el('recordings-entry-btn').addEventListener('click', openRecordings);
 
+  // ---------- History (everything practiced, across every track, from the
+  // beginning) ----------
+  // Pulls together completed/in-progress fixed-track scenarios, Research
+  // lookups, generated Custom Scenario / Ask & Get Advice entries, and saved
+  // recordings into one chronological feed. Older entries saved before
+  // timestamps were tracked won't have an exact date (Custom/Advice can
+  // still recover one from their id, which embeds a creation time) — those
+  // just sort to the end rather than being left out.
+  function collectHistoryEvents() {
+    const events = [];
+
+    getDynamicIndex('research').forEach(entry => {
+      events.push({
+        timestamp: entry.updatedAt || null,
+        icon: trackStyle('research').icon,
+        color: trackStyle('research').color,
+        title: entry.term,
+        subLabel: 'Research',
+        statusLabel: 'Looked up',
+        onOpen: () => { state.track = 'research'; openScenario(entry); },
+      });
+    });
+
+    getDynamicIndex('custom').forEach(entry => {
+      events.push({
+        timestamp: entry.createdAt || timestampFromId(entry.id),
+        icon: trackStyle('custom').icon,
+        color: trackStyle('custom').color,
+        title: entry.title,
+        subLabel: 'Custom Scenario',
+        statusLabel: 'Generated',
+        onOpen: () => { state.track = 'custom'; openScenario(entry); },
+      });
+    });
+
+    getDynamicIndex('advice').forEach(entry => {
+      events.push({
+        timestamp: entry.createdAt || timestampFromId(entry.id),
+        icon: trackStyle('advice').icon,
+        color: trackStyle('advice').color,
+        title: entry.title,
+        subLabel: 'Ask & Get Advice',
+        statusLabel: 'Generated',
+        onOpen: () => { state.track = 'advice'; openScenario(entry); },
+      });
+    });
+
+    (state.tracks || []).forEach(track => {
+      if (track.dynamic) return;
+      track.scenarios.forEach(sc => {
+        const saved = loadProgress(track.key, sc.id);
+        if (!saved) return;
+        events.push({
+          timestamp: saved.updatedAt || null,
+          icon: trackStyle(track.key).icon,
+          color: trackStyle(track.key).color,
+          title: sc.title,
+          subLabel: track.label,
+          statusLabel: saved.phase === 'done' ? 'Completed' : 'In progress',
+          onOpen: () => { state.track = track.key; openScenario(sc); },
+        });
+      });
+    });
+
+    return events;
+  }
+
+  function historyDayLabel(timestamp) {
+    if (!timestamp) return 'Earlier';
+    const d = new Date(timestamp);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const today = todayStr();
+    if (dateStr === today) return 'Today';
+    if (dateStr === addDays(today, -1)) return 'Yesterday';
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
+  }
+
+  async function renderHistoryEntry() {
+    const events = collectHistoryEvents();
+    const recordings = await getAllRecordings();
+    const total = events.length + recordings.length;
+    el('history-entry-sub').textContent = total
+      ? `${total} thing${total === 1 ? '' : 's'} practiced.`
+      : 'Nothing practiced yet.';
+  }
+
+  async function openHistory() {
+    const events = collectHistoryEvents();
+    const recordings = await getAllRecordings();
+    recordings.forEach(rec => {
+      events.push({
+        timestamp: rec.savedAt || null,
+        icon: '🎙️',
+        color: trackStyle(rec.trackKey).color,
+        title: rec.scenarioTitle || rec.trackLabel,
+        subLabel: `${rec.trackLabel} · recording`,
+        statusLabel: 'Recorded',
+        onOpen: openRecordings,
+      });
+    });
+    events.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    const list = el('history-list');
+    list.innerHTML = '';
+    el('history-empty').classList.toggle('hidden', events.length > 0);
+    el('history-summary').textContent = events.length
+      ? `${events.length} thing${events.length === 1 ? '' : 's'} practiced`
+      : '';
+
+    let lastDayLabel = null;
+    events.forEach(ev => {
+      const dayLabel = historyDayLabel(ev.timestamp);
+      if (dayLabel !== lastDayLabel) {
+        const heading = document.createElement('p');
+        heading.className = 'section-label history-day-label';
+        heading.textContent = dayLabel;
+        list.appendChild(heading);
+        lastDayLabel = dayLabel;
+      }
+      const timeStr = ev.timestamp
+        ? new Date(ev.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+        : '';
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <h3>${ev.icon} ${escapeHtml(ev.title)}</h3>
+        <p class="card-preview">${escapeHtml(ev.subLabel)}</p>
+        <p class="card-status" style="color:${ev.color} !important;">${escapeHtml(ev.statusLabel)}${timeStr ? ' · ' + timeStr : ''}</p>
+      `;
+      if (ev.onOpen) card.addEventListener('click', ev.onOpen);
+      list.appendChild(card);
+    });
+
+    showScreen('screen-history');
+  }
+
+  el('history-entry-btn').addEventListener('click', openHistory);
+
   // ---------- Init ----------
   startOnboardingIfNeeded(); // first, so screen-tracks never flashes before it
   renderDayTag();
@@ -1803,4 +1957,5 @@
   renderAvatarWidget();
   renderFlashcardEntry();
   renderRecordingsEntry();
+  renderHistoryEntry();
 })();

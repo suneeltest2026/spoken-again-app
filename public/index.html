@@ -109,6 +109,14 @@
         <span id="recordings-entry-sub" class="stat-sub">Turn on "Save my voice" (⏺) next to the mic while practicing to start collecting clips.</span>
       </button>
     </div>
+
+    <div class="stat-row">
+      <button id="history-entry-btn" class="stat-card" type="button">
+        <span class="stat-icon">🕰️</span>
+        <span class="stat-title">History</span>
+        <span id="history-entry-sub" class="stat-sub">Nothing practiced yet.</span>
+      </button>
+    </div>
   </section>
 
   <!-- SCREEN: shared "category hub" sub-list (English for Professions, Describe a Situation, ...) -->
@@ -136,6 +144,23 @@
     </div>
 
     <div id="recordings-list" class="card-list"></div>
+  </section>
+
+  <!-- SCREEN: history (everything practiced, from the beginning) -->
+  <section id="screen-history" class="screen">
+    <header class="app-header chat-header">
+      <button class="back-btn" data-back="screen-tracks">&larr;</button>
+      <div class="chat-header-text">
+        <h1>History</h1>
+        <p class="subtitle" id="history-summary"></p>
+      </div>
+    </header>
+
+    <div id="history-empty" class="hidden">
+      <p class="subtitle">Nothing practiced yet — complete a scenario, look something up, or generate a custom scenario or advice, and it'll show up here.</p>
+    </div>
+
+    <div id="history-list" class="card-list"></div>
   </section>
 
   <!-- SCREEN: flashcards -->

@@ -363,6 +363,11 @@ html, body {
 #recordings-empty.hidden { display: none; }
 #recordings-empty { padding: 24px 4px; text-align: center; }
 
+#history-empty.hidden { display: none; }
+#history-empty { padding: 24px 4px; text-align: center; }
+.history-day-label { margin-top: 18px; }
+.history-day-label:first-child { margin-top: 0; }
+
 .flashcard-stage {
   display: flex;
   flex-direction: column;
