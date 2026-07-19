@@ -846,8 +846,8 @@
     speak(text);
   }
 
-  function pushUserBubble(text) {
-    state.history.push({ role: 'user', text });
+  function pushUserBubble(text, audioKey) {
+    state.history.push(audioKey ? { role: 'user', text, audioKey } : { role: 'user', text });
     addBubble('user', text);
   }
 
@@ -1090,9 +1090,9 @@
     el('mic-btn').disabled = busy;
   }
 
-  async function sendUserText(text) {
+  async function sendUserText(text, audioKey) {
     if (!text.trim() || state.phase === 'done') return;
-    pushUserBubble(text);
+    pushUserBubble(text, audioKey);
     el('text-input').value = '';
     el('text-input').placeholder = 'Or type your answer here...';
     hideFeedback();
@@ -1220,6 +1220,7 @@
       phase: 'note',
       stepIndex: 0,
       sentence: transcript,
+      saveToLibrary: true, // these only ever get recorded via the explicit ⏺ tap
     };
   }
 
@@ -1263,7 +1264,12 @@
         } else {
           // Capture the sentence/scenario context now, before sendUserText
           // triggers grading and possibly advances to the next sentence.
+          // Every spoken chat turn auto-records (not just via the ⏺ button) so
+          // History can play back the learner's actual voice; the ⏺ button
+          // additionally saves that same clip into My Recordings.
+          let audioKey = null;
           if (activeRecorder) {
+            audioKey = turnRecordingKey(state.historySessionId, state.history.length);
             pendingRecordingContext = {
               trackKey: state.track,
               trackLabel: (findTrack(state.track) || {}).label || state.track,
@@ -1275,10 +1281,12 @@
                 ? state.scenario.story.join(' ')
                 : state.scenario.story[state.stepIndex],
               userText: transcript, // what the learner actually said, not the target line
+              saveToLibrary: recordingViaButton, // only the explicit ⏺ tap also goes to My Recordings
+              turnAudioKey: audioKey,
             };
           }
           el('text-input').value = transcript;
-          sendUserText(transcript);
+          sendUserText(transcript, audioKey);
         }
       };
       recognition.onerror = (event) => {
@@ -1389,7 +1397,20 @@
         activeRecorder = null;
         if (pendingRecordingContext) {
           if (totalBytes > 0) {
-            saveRecording(pendingRecordingContext, new Blob(chunks, { type: recordedType }));
+            const blob = new Blob(chunks, { type: recordedType });
+            if (pendingRecordingContext.saveToLibrary) {
+              saveRecording(pendingRecordingContext, blob);
+            }
+            if (pendingRecordingContext.turnAudioKey) {
+              saveTurnRecording(pendingRecordingContext.turnAudioKey, blob);
+              if (!pendingRecordingContext.saveToLibrary) {
+                const statusEl2 = el('mic-status');
+                statusEl2.textContent = '🎙️ Voice saved to History';
+                setTimeout(() => {
+                  if (statusEl2.textContent === '🎙️ Voice saved to History') statusEl2.textContent = '';
+                }, 3000);
+              }
+            }
           } else {
             el('mic-status').textContent = "⚠️ Didn't catch any audio to save that time — try again.";
           }
@@ -1410,8 +1431,13 @@
   async function startRecognitionIfAvailable() {
     if (!recognition || recognizing) return;
     const statusEl = micStatusEl();
-    const wantsRecording = recordThisAttempt && mediaRecorderSupported
-      && (micTarget === 'chat' || micTarget === 'advice' || micTarget === 'advice-image');
+    // Chat-mode voice turns always auto-record (so History can play back the
+    // learner's actual voice, not just its transcript) — Advice/Advice-image
+    // voice notes still only record on an explicit ⏺ tap, as before.
+    const wantsRecording = mediaRecorderSupported && (
+      micTarget === 'chat' ||
+      (recordThisAttempt && (micTarget === 'advice' || micTarget === 'advice-image'))
+    );
     recordThisAttempt = false; // one-shot — consumed here regardless of what happens next
 
     // On some mobile browsers (notably iOS Safari), SpeechRecognition needs an
@@ -1783,16 +1809,24 @@
   // has a small, easy-to-exhaust quota that the rest of the app depends on.
   const RECORDINGS_DB_NAME = 'speakAgainRecordings';
   const RECORDINGS_STORE = 'recordings';
+  // Every spoken turn in a scenario chat (plain mic tap, not just the ⏺
+  // record button) gets its audio saved here too, keyed uniquely per History
+  // session+turn so it's never overwritten — this is what lets History show
+  // playback of exactly what the learner said instead of just the transcript.
+  const TURN_RECORDINGS_STORE = 'turnRecordings';
   let recordingObjectUrls = [];
 
   function openRecordingsDB() {
     return new Promise((resolve, reject) => {
       if (!('indexedDB' in window)) { reject(new Error('IndexedDB not supported')); return; }
-      const req = indexedDB.open(RECORDINGS_DB_NAME, 1);
+      const req = indexedDB.open(RECORDINGS_DB_NAME, 2);
       req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains(RECORDINGS_STORE)) {
           db.createObjectStore(RECORDINGS_STORE, { keyPath: 'key' });
+        }
+        if (!db.objectStoreNames.contains(TURN_RECORDINGS_STORE)) {
+          db.createObjectStore(TURN_RECORDINGS_STORE, { keyPath: 'key' });
         }
       };
       req.onsuccess = () => resolve(req.result);
@@ -1804,6 +1838,38 @@
     return ctx.phase === 'retell'
       ? `${ctx.trackKey}:${ctx.scenarioId}:retell`
       : `${ctx.trackKey}:${ctx.scenarioId}:step:${ctx.stepIndex}`;
+  }
+
+  function turnRecordingKey(sessionId, turnIndex) {
+    return `${sessionId}:${turnIndex}`;
+  }
+
+  async function saveTurnRecording(key, blob) {
+    try {
+      const db = await openRecordingsDB();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(TURN_RECORDINGS_STORE, 'readwrite');
+        tx.objectStore(TURN_RECORDINGS_STORE).put({ key, audioBlob: blob, savedAt: Date.now() });
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch (e) {
+      // Best-effort — losing a turn's audio still leaves the text transcript intact.
+    }
+  }
+
+  async function getTurnRecording(key) {
+    try {
+      const db = await openRecordingsDB();
+      return await new Promise((resolve, reject) => {
+        const tx = db.transaction(TURN_RECORDINGS_STORE, 'readonly');
+        const req = tx.objectStore(TURN_RECORDINGS_STORE).get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+      });
+    } catch (e) {
+      return null;
+    }
   }
 
   async function saveRecording(ctx, blob) {
@@ -2063,8 +2129,9 @@
   // list shows exactly what was said in THAT attempt, rather than silently
   // resuming whichever attempt happens to be the current one.
   let currentHistoryDetailSession = null;
+  let historyDetailObjectUrls = [];
 
-  function openHistorySessionDetail(session) {
+  async function openHistorySessionDetail(session) {
     currentHistoryDetailSession = session;
     el('history-detail-title').textContent = session.scenarioTitle;
     const statusLabel = session.phase === 'done' ? 'Completed' : 'In progress';
@@ -2072,16 +2139,29 @@
     el('history-detail-sub').textContent = `${session.trackLabel} · ${statusLabel}` +
       (when ? ' · ' + formatSavedAt(when) : '');
 
+    historyDetailObjectUrls.forEach(u => URL.revokeObjectURL(u));
+    historyDetailObjectUrls = [];
     const log = el('history-detail-log');
     log.innerHTML = '';
-    (session.history || []).forEach(m => {
-      const bubble = document.createElement('div');
-      bubble.className = `bubble ${m.role === 'claude' ? 'claude' : 'user'}`;
-      bubble.textContent = m.text;
-      log.appendChild(bubble);
-    });
-
     showScreen('screen-history-detail');
+
+    // Turns spoken via voice play back the learner's actual recording instead
+    // of just showing the transcript (see turnRecordingKey/saveTurnRecording).
+    for (const m of (session.history || [])) {
+      const rec = (m.role === 'user' && m.audioKey) ? await getTurnRecording(m.audioKey) : null;
+      const bubble = document.createElement('div');
+      if (rec && rec.audioBlob) {
+        bubble.className = 'bubble user bubble-audio';
+        const url = URL.createObjectURL(rec.audioBlob);
+        historyDetailObjectUrls.push(url);
+        bubble.innerHTML = `<audio controls class="recording-audio" src="${url}"></audio>` +
+          `<p class="bubble-audio-caption">${escapeHtml(m.text)}</p>`;
+      } else {
+        bubble.className = `bubble ${m.role === 'claude' ? 'claude' : 'user'}`;
+        bubble.textContent = m.text;
+      }
+      log.appendChild(bubble);
+    }
   }
 
   el('history-detail-practice-btn').addEventListener('click', () => {

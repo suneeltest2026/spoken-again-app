@@ -608,6 +608,19 @@ html, body {
   display: block;
 }
 
+.bubble-audio {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bubble-audio .recording-audio { width: 230px; max-width: 100%; margin-top: 0; }
+.bubble-audio-caption {
+  margin: 0 !important;
+  font-size: 0.78rem !important;
+  font-style: italic;
+  opacity: 0.75;
+}
+
 .input-bar input {
   flex: 1;
   min-width: 0; /* let it shrink instead of overflowing the row once 3+ buttons share it */
